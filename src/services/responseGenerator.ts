@@ -1,4 +1,5 @@
 import { IntentType, Language, EmotionState, EmotionLevel } from '../types';
+import { extractTechnicalTerms } from './multilingualService';
 
 type ReplyVariants = Record<Language, Record<EmotionState, Record<IntentType, string[]>>>;
 
@@ -551,11 +552,27 @@ export function generateReply(
     }
   }
 
-  if (userText && intent === 'unknown' && emotion !== 'calm') {
-    const maxLen = 80;
-    const preview =
-      userText.length > maxLen ? userText.slice(0, maxLen) + '...' : userText;
-    reply = reply + `\n\n「${preview}」`;
+  if (userText) {
+    const technicalTerms = extractTechnicalTerms(userText);
+    const relevantTerms = technicalTerms.filter((t) => t.length >= 2).slice(0, 6);
+
+    if (relevantTerms.length > 0) {
+      const termLabels: Record<Language, { prefix: string; suffix: string }> = {
+        zh: { prefix: '\n\n📋 已识别到您提到的关键信息：', suffix: '' },
+        en: { prefix: '\n\n📋 Key items mentioned in your message:', suffix: '' },
+        ja: { prefix: '\n\n📋 お問い合わせ内容で認識したキーワード：', suffix: '' },
+      };
+      const labels = termLabels[language];
+      const termStr = relevantTerms.map((t) => `\`${t}\``).join(' · ');
+      reply = `${reply}${labels.prefix} ${termStr}${labels.suffix}`;
+    }
+
+    if (intent === 'unknown' && emotion !== 'calm') {
+      const maxLen = 80;
+      const preview =
+        userText.length > maxLen ? userText.slice(0, maxLen) + '...' : userText;
+      reply = reply + `\n\n「${preview}」`;
+    }
   }
 
   return reply;

@@ -1,36 +1,271 @@
 import { Language } from '../types';
 
-const hiraganaKatakana = /[\u3040-\u309F\u30A0-\u30FF]/;
-const cjk = /[\u4E00-\u9FFF]/;
-const latin = /[a-zA-Z]/;
+const hiraganaKatakana = /[\u3040-\u309F\u30A0-\u30FF]/g;
+const cjk = /[\u4E00-\u9FFF]/g;
+const latin = /[a-zA-Z]/g;
+const digit = /[0-9]/g;
+const punctuation = /[\s\u3000.,!?;:、。！？；：、，。]/g;
 
-export function detectLanguage(text: string): Language {
-  const hiraganaCount = (text.match(hiraganaKatakana) || []).length;
-  const cjkCount = (text.match(cjk) || []).length;
-  const latinCount = (text.match(latin) || []).length;
+export interface LanguageDetectionResult {
+  language: Language;
+  isMixed: boolean;
+  primaryRatio: number;
+  languageRatios: Record<Language, number>;
+  technicalTerms: string[];
+}
 
-  if (hiraganaCount > 0) {
-    return 'ja';
+const TECHNICAL_TERMS_PATTERNS = [
+  /\b(?:API|SDK|JSON|XML|HTML|CSS|HTTP|HTTPS|URL|URI|IP|DNS|VPN|CDN|CPU|GPU|RAM|ROM|SSD|HDD|USB|WIFI|Bluetooth|NFC|GPS|IoT|ML|DL|NLP|CRM|ERP|SaaS|PaaS|IaaS|OAuth|JWT|REST|GraphQL|WebSocket|WiFi)\b/gi,
+  /\b(?:4G|5G|Gmail|Outlook|Chrome|Firefox|Safari|Edge|Windows|macOS|Linux|iOS|Android|Ubuntu|Docker|Kubernetes|Redis|MySQL|PostgreSQL|MongoDB|Elasticsearch|Kafka|RabbitMQ|Nginx|Apache|AWS|Azure|GCP|GitHub|GitLab|Slack|Teams|Zoom|Skype|PayPal|Stripe|Visa|Mastercard|Alipay|WeChat)\b/gi,
+  /\b[A-Z][A-Z0-9_]{2,}\b/g,
+  /#[A-Za-z0-9_]{2,}/g,
+  /@[A-Za-z0-9_]{3,}/g,
+  /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+  /\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]]/g,
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  /\b(?:ORD|TK|SKU|MODEL|VERSION|Ticket|OrderId)\s*[:#-]\s*[A-Za-z0-9-]+\b/gi,
+  /\b(?:ORD|TK|SKU)[-_\s][A-Za-z0-9-]{4,}\b/gi,
+];
+
+const STOPWORDS_FOR_CLEANING = new Set([
+  'hello', 'hi', 'thank', 'thanks', 'please', 'sorry', 'help', 'want', 'need',
+  'order', 'refund', 'shipping', 'product', 'account', 'excuse', 'welcome',
+  'good', 'morning', 'afternoon', 'evening', 'bye', 'yes', 'no', 'ok', 'okay',
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'must', 'can', 'shall',
+  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+  'my', 'your', 'his', 'its', 'our', 'their',
+  'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom',
+  'not', 'but', 'and', 'or', 'if', 'then', 'else', 'so', 'than', 'too', 'very',
+  'just', 'also', 'now', 'here', 'there', 'when', 'where', 'why', 'how',
+  'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during',
+  'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out',
+  'on', 'off', 'over', 'under', 'again', 'further', 'once',
+  'speak', 'english', 'chinese', 'japanese', 'language', 'know', 'get',
+  'check', 'status', 'still', 'yet', 'even', 'because', 'as', 'until',
+  'while', 'of', 'at', 'by', 'any', 'all', 'each', 'few', 'more', 'most',
+  'other', 'some', 'such', 'only', 'own', 'same',
+]);
+
+export function extractTechnicalTerms(text: string): string[] {
+  const terms: Set<string> = new Set();
+  for (const pattern of TECHNICAL_TERMS_PATTERNS) {
+    const matches = text.match(pattern);
+    if (matches) {
+      matches.forEach((m) => {
+        const trimmed = m.trim();
+        const lower = trimmed.toLowerCase();
+        if (!STOPWORDS_FOR_CLEANING.has(lower) && trimmed.length >= 2) {
+          terms.add(trimmed);
+        }
+      });
+    }
+  }
+  return Array.from(terms);
+}
+
+export function cleanTextForDetection(text: string): string {
+  let cleaned = text;
+
+  const terms = extractTechnicalTerms(cleaned);
+  terms.sort((a, b) => b.length - a.length);
+  for (const term of terms) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned.replace(new RegExp(escaped, 'g'), ' ');
   }
 
-  if (cjkCount > latinCount) {
-    return 'zh';
+  cleaned = cleaned.replace(/\b\d+\b/g, ' ');
+  cleaned = cleaned.replace(punctuation, ' ');
+  return cleaned.trim();
+}
+
+export interface LanguageCharCounts {
+  ja: number;
+  zh: number;
+  en: number;
+  total: number;
+}
+
+export function countLanguageChars(text: string): LanguageCharCounts {
+  const cleaned = cleanTextForDetection(text);
+  let jaCount = (cleaned.match(hiraganaKatakana) || []).length;
+  let cjkCount = (cleaned.match(cjk) || []).length;
+  let latinCount = (cleaned.match(latin) || []).length;
+
+  let zhCount = cjkCount;
+  if (jaCount > 0) {
+    zhCount = Math.max(0, cjkCount - Math.floor(jaCount * 0.3));
   }
 
-  if (latinCount > 0) {
-    return 'en';
+  const total = Math.max(1, jaCount + zhCount + latinCount);
+  return { ja: jaCount, zh: zhCount, en: latinCount, total };
+}
+
+export function detectLanguageDetailed(text: string): LanguageDetectionResult {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return {
+      language: 'zh',
+      isMixed: false,
+      primaryRatio: 1,
+      languageRatios: { zh: 1, en: 0, ja: 0 },
+      technicalTerms: [],
+    };
+  }
+
+  const technicalTerms = extractTechnicalTerms(trimmed);
+  const hasTechnicalTerms = technicalTerms.length > 0;
+  const counts = countLanguageChars(trimmed);
+
+  const ratios: Record<Language, number> = {
+    zh: counts.zh / counts.total,
+    en: counts.en / counts.total,
+    ja: counts.ja / counts.total,
+  };
+
+  const sorted = Object.entries(ratios).sort((a, b) => b[1] - a[1]) as [Language, number][];
+  const [primaryLang, primaryRatio] = sorted[0];
+  const [secondaryLang, secondaryRatio] = sorted[1];
+
+  const zhuEnBalance = Math.abs(ratios.zh - ratios.en);
+  const nearTie = zhuEnBalance < 0.2 && counts.total > 3;
+  const technicalTermsSignificant = hasTechnicalTerms
+    && technicalTerms.some((t) => t.length >= 3)
+    && counts.total > 5;
+  let isMixed = (secondaryRatio > 0.15 && primaryRatio < 0.85 && counts.total > 5)
+    || nearTie
+    || (hasTechnicalTerms && secondaryRatio > 0.08 && counts.total > 5)
+    || technicalTermsSignificant;
+
+  let language: Language = primaryLang;
+
+  if (nearTie && ratios.zh >= 0.3) {
+    language = 'zh';
+    isMixed = true;
+  } else if (isMixed) {
+    const threshold = 0.55;
+    if (ratios.zh >= threshold) language = 'zh';
+    else if (ratios.en >= threshold) language = 'en';
+    else if (ratios.ja >= threshold) language = 'ja';
+    else {
+      const scoreZh = ratios.zh * 1.15 + (counts.zh > 5 ? 0.08 : 0) + (ratios.zh >= 0.3 ? 0.05 : 0);
+      const scoreEn = ratios.en * 1.10 + (counts.en > 10 ? 0.05 : 0);
+      const scoreJa = ratios.ja * 1.20 + (counts.ja > 3 ? 0.1 : 0);
+      if (scoreJa >= scoreZh && scoreJa >= scoreEn) language = 'ja';
+      else if (scoreEn >= scoreZh) language = 'en';
+      else language = 'zh';
+    }
+  }
+
+  if (ratios.ja > 0 && counts.zh > 0 && counts.en === 0) {
+    language = 'ja';
+    if (ratios.ja < 0.7) isMixed = true;
   }
 
   const englishIndicators = [
-    'hello', 'hi', 'thank', 'please', 'sorry', 'help', 'want', 'need',
-    'order', 'refund', 'shipping', 'product', 'account',
+    'hello', 'hi', 'thank', 'thanks', 'please', 'sorry', 'help', 'want', 'need',
+    'order', 'refund', 'shipping', 'product', 'account', 'excuse',
+    'welcome', 'good', 'morning', 'afternoon', 'evening', 'bye',
   ];
-  const lowerText = text.toLowerCase();
-  if (englishIndicators.some((w) => lowerText.includes(w))) {
-    return 'en';
+  const japaneseIndicators = [
+    'こんにちは', 'はじめまして', 'ありがとう', 'すみません', 'お願い',
+    'よろしく', 'こんばんは', 'おはよう', 'さようなら', 'です', 'ます',
+    'でした', 'ました', 'ください', 'ません', 'ない', 'ですか',
+  ];
+  const lowerText = trimmed.toLowerCase();
+
+  if (counts.total < 12 && !isMixed && primaryRatio < 0.8) {
+    let enHits = 0, jaHits = 0;
+    englishIndicators.forEach((w) => { if (lowerText.includes(w)) enHits++; });
+    japaneseIndicators.forEach((w) => { if (lowerText.includes(w)) jaHits++; });
+    if (jaHits > enHits && jaHits > 0) language = 'ja';
+    else if (enHits > 0 && enHits >= 1 && counts.en > 3) language = 'en';
   }
 
-  return 'zh';
+  return {
+    language,
+    isMixed,
+    primaryRatio,
+    languageRatios: ratios,
+    technicalTerms,
+  };
+}
+
+export function detectLanguage(text: string): Language {
+  return detectLanguageDetailed(text).language;
+}
+
+export interface LanguageSwitchDecision {
+  shouldSwitch: boolean;
+  newLanguage: Language;
+  confidence: number;
+  reason: string;
+}
+
+const SWITCH_THRESHOLD_FIRST_MESSAGE = 0.5;
+const SWITCH_THRESHOLD_SUBSEQUENT = 0.7;
+const SWITCH_CONSISTENCY_WINDOW = 2;
+
+export function decideLanguageSwitch(
+  currentLang: Language,
+  newText: string,
+  conversationHistory: { text: string; language: Language }[] = []
+): LanguageSwitchDecision {
+  const result = detectLanguageDetailed(newText);
+  const detectedLang = result.language;
+  const newRatio = result.languageRatios[detectedLang];
+
+  if (detectedLang === currentLang) {
+    return {
+      shouldSwitch: false,
+      newLanguage: currentLang,
+      confidence: newRatio,
+      reason: 'detected_language_matches_current',
+    };
+  }
+
+  const isFirstMessage = conversationHistory.length === 0;
+  const threshold = isFirstMessage ? SWITCH_THRESHOLD_FIRST_MESSAGE : SWITCH_THRESHOLD_SUBSEQUENT;
+
+  if (newRatio < threshold) {
+    return {
+      shouldSwitch: false,
+      newLanguage: currentLang,
+      confidence: newRatio,
+      reason: `insufficient_confidence_${newRatio.toFixed(2)}_<${threshold}`,
+    };
+  }
+
+  if (isFirstMessage) {
+    return {
+      shouldSwitch: true,
+      newLanguage: detectedLang,
+      confidence: newRatio,
+      reason: 'first_message_language_detection',
+    };
+  }
+
+  const recentHistory = conversationHistory.slice(-SWITCH_CONSISTENCY_WINDOW);
+  const consistentSwitchSignals = recentHistory.filter(
+    (h) => detectLanguage(h.text) === detectedLang
+  ).length;
+
+  if (consistentSwitchSignals >= SWITCH_CONSISTENCY_WINDOW - 1 || newRatio >= 0.85) {
+    return {
+      shouldSwitch: true,
+      newLanguage: detectedLang,
+      confidence: newRatio,
+      reason: consistentSwitchSignals >= 1 ? 'consistent_switch_signals' : 'strong_language_signal',
+    };
+  }
+
+  return {
+    shouldSwitch: false,
+    newLanguage: currentLang,
+    confidence: newRatio,
+    reason: `pending_consistency_signals_${consistentSwitchSignals}/${SWITCH_CONSISTENCY_WINDOW}`,
+  };
 }
 
 export const langLabels: Record<Language, { native: string; flag: string; code: string }> = {

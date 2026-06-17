@@ -12,7 +12,7 @@ import {
 import { seedConversations, seedTickets, seedStats } from './seedData';
 import { classifyIntent } from '../services/intentClassifier';
 import { analyzeEmotion, evaluateComfortMode } from '../services/emotionAnalyzer';
-import { detectLanguage } from '../services/multilingualService';
+import { detectLanguage, decideLanguageSwitch, detectLanguageDetailed } from '../services/multilingualService';
 import { generateReply } from '../services/responseGenerator';
 import {
   shouldCreateTicket,
@@ -167,8 +167,21 @@ const useAppStore = create<AppState>((set, get) => {
       const trimmed = text.trim();
       if (!trimmed) return {};
 
-      const detectedLang = detectLanguage(trimmed);
-      const effectiveLang: Language = detectedLang;
+      const previousUserMessages = conv.messages.filter((m) => m.role === 'user');
+      const historyForSwitch = previousUserMessages.map((m) => ({
+        text: m.content,
+        language: m.language,
+      }));
+
+      const switchDecision = decideLanguageSwitch(
+        conv.currentLanguage,
+        trimmed,
+        historyForSwitch
+      );
+
+      const effectiveLang: Language = switchDecision.newLanguage;
+
+      const detectionDetails = detectLanguageDetailed(trimmed);
 
       const previousUserMsg = [...conv.messages].reverse().find((m) => m.role === 'user');
       const previousIntent = previousUserMsg?.intent;
