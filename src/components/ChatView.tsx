@@ -14,12 +14,15 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Heart,
+  ShieldAlert,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store';
-import { Language, Message, IntentType } from '../types';
+import { Language, Message, IntentType, EmotionLevel } from '../types';
 import { langLabels, t } from '../services/multilingualService';
 import { getQuickQuestions } from '../services/responseGenerator';
+import { getEmotionLevelLabel } from '../services/emotionAnalyzer';
 import EmotionBadge from './EmotionBadge';
 
 function formatTime(ts: number): string {
@@ -47,6 +50,17 @@ function getIntentLabel(intent?: IntentType, lang?: Language): string {
     },
   };
   return labels[lang]?.[intent] || intent;
+}
+
+function getComfortLevelStyle(level: EmotionLevel): { bg: string; border: string; text: string; icon: string } {
+  switch (level) {
+    case 'mild':
+      return { bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', icon: '💛' };
+    case 'moderate':
+      return { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-700', icon: '🧡' };
+    case 'severe':
+      return { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', icon: '❤️‍🔥' };
+  }
 }
 
 export default function ChatView() {
@@ -248,6 +262,60 @@ export default function ChatView() {
         )}
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-8 py-6 space-y-5 bg-gradient-to-b from-slate-50/50 via-white/0 to-transparent">
+          {conv.comfortMode.enabled && messages.length > 0 && (() => {
+            const style = getComfortLevelStyle(conv.comfortMode.level);
+            const levelLabel = getEmotionLevelLabel(conv.comfortMode.level, currentLang);
+            const comfortDescriptions: Record<EmotionLevel, Record<Language, string>> = {
+              mild: {
+                zh: '已切换至共情安抚模式，优先倾听与理解您的感受',
+                en: 'Switched to empathetic comfort mode, prioritizing listening and understanding',
+                ja: '共感安慰モードに切り替えました。お気持ちを優先してお伺いします',
+              },
+              moderate: {
+                zh: '已启动深度安抚模式，我们将先理解您的感受，再提供解决方案',
+                en: 'Deep comfort mode activated — understanding first, then solutions',
+                ja: '深い安慰モードを起動しました。まずお気持ちを理解し、その後に解決策をご提案します',
+              },
+              severe: {
+                zh: '已启动最高级别安抚模式，我们深切理解您的不满，将全力为您解决问题',
+                en: 'Maximum comfort mode engaged — we deeply understand your frustration and will resolve this with full commitment',
+                ja: '最高レベルの安慰モードを起動しました。お客様のご不満を深く理解し、全力で解決にあたります',
+              },
+            };
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                className={`p-3.5 rounded-2xl ${style.bg} border-2 ${style.border} flex items-center gap-3 shadow-md`}
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  conv.comfortMode.level === 'severe'
+                    ? 'bg-gradient-to-br from-red-500 to-rose-600'
+                    : conv.comfortMode.level === 'moderate'
+                    ? 'bg-gradient-to-br from-orange-500 to-amber-500'
+                    : 'bg-gradient-to-br from-amber-400 to-yellow-500'
+                } shadow-lg`}>
+                  {conv.comfortMode.level === 'severe' ? (
+                    <ShieldAlert className="w-4.5 h-4.5 text-white" />
+                  ) : (
+                    <Heart className="w-4.5 h-4.5 text-white" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-bold ${style.text} flex items-center gap-1.5`}>
+                    <span>{style.icon}</span>
+                    {currentLang === 'zh' ? '情绪安抚模式' : currentLang === 'ja' ? '感情安慰モード' : 'Comfort Mode'}
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${style.bg} ${style.text} border ${style.border}`}>
+                      {levelLabel}
+                    </span>
+                  </p>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {comfortDescriptions[conv.comfortMode.level][currentLang]}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })()}
           {messages.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -371,7 +439,13 @@ export default function ChatView() {
             </button>
           </div>
           <p className="text-[10px] text-slate-400 text-center mt-2">
-            {currentLang === 'zh'
+            {conv.comfortMode.enabled
+              ? currentLang === 'zh'
+                ? `🤗 情绪安抚模式已启动（${getEmotionLevelLabel(conv.comfortMode.level, 'zh')}）· 系统将优先共情回应 · Enter 发送`
+                : currentLang === 'ja'
+                ? `🤗 感情安慰モード起動中（${getEmotionLevelLabel(conv.comfortMode.level, 'ja')}）· 共感優先で応答 · Enter で送信`
+                : `🤗 Comfort mode active (${getEmotionLevelLabel(conv.comfortMode.level, 'en')}) · Empathy-first responses · Press Enter to send`
+              : currentLang === 'zh'
               ? '💡 系统将自动识别语言并进行情绪分析 · Enter 发送'
               : currentLang === 'ja'
               ? '💡 自動言語検出と感情分析 · Enter で送信'

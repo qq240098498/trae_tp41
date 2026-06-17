@@ -1,4 +1,4 @@
-import { EmotionState, Language } from '../types';
+import { EmotionState, Language, EmotionLevel, ComfortModeState, Conversation } from '../types';
 
 const negativeWords: Record<Language, string[]> = {
   zh: [
@@ -28,15 +28,36 @@ const positiveWords: Record<Language, string[]> = {
   ja: ['満足', '嬉しい', '楽しい', '好き', '感謝', 'ありがとう', '素晴らしい', '最高', '良い', '優れている'],
 };
 
+const directComplaintWords: Record<Language, string[]> = {
+  zh: [
+    '投诉', '举报', '12315', '消费者协会', '工商局', '曝光', '媒体', '告你们',
+    '起诉', '法律', '维权', '赔偿', '十倍赔偿', '假一赔三', '欺诈',
+    '我要投诉', '坚决投诉', '必须赔偿', '太过分了', '忍无可忍',
+  ],
+  en: [
+    'complaint', 'complain', 'lawsuit', 'sue', 'legal', 'bbb', 'better business bureau',
+    'ftc', 'consumer protection', 'expose', 'media', 'public', 'report',
+    'demand compensation', 'refund immediately', 'unacceptable behavior',
+    'i will sue', 'take legal action', 'this is fraud',
+  ],
+  ja: [
+    '苦情', '訴える', '裁判', '法律', '消費者センター', '公正取引委員会',
+    'メディア', '暴露', '賠償', '損害賠償', '詐欺', '不当行為',
+    '絶対に許せない', '絶対に訴える', '絶対に払わせる',
+  ],
+};
+
 export interface EmotionResult {
   state: EmotionState;
   score: number;
+  level: EmotionLevel;
   details: {
     negativeWordCount: number;
     positiveWordCount: number;
     exclamationCount: number;
     uppercaseRatio: number;
     repeatedChars: number;
+    directComplaintWords: number;
   };
 }
 
@@ -48,6 +69,7 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
     exclamationCount: 0,
     uppercaseRatio: 0,
     repeatedChars: 0,
+    directComplaintWords: 0,
   };
 
   negativeWords[language].forEach((word) => {
@@ -62,6 +84,13 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
     const regex = new RegExp(lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
     const matches = normalized.match(regex);
     if (matches) details.positiveWordCount += matches.length;
+  });
+
+  directComplaintWords[language].forEach((word) => {
+    const lowerWord = word.toLowerCase();
+    const regex = new RegExp(lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    const matches = normalized.match(regex);
+    if (matches) details.directComplaintWords += matches.length;
   });
 
   const exclamationMatches = text.match(/[!！]/g);
@@ -82,11 +111,20 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
     (details.negativeWordCount * 2.5 +
       details.exclamationCount * 0.8 +
       details.uppercaseRatio * 8 +
-      details.repeatedChars * 1.5 -
+      details.repeatedChars * 1.5 +
+      details.directComplaintWords * 4.0 -
       details.positiveWordCount * 1.2) /
     Math.sqrt(textLength);
 
   let score = 1 / (1 + Math.exp(-rawScore * 2));
+
+  if (details.directComplaintWords > 0) {
+    score = Math.min(1, score + 0.15 * details.directComplaintWords);
+  }
+
+  if (details.exclamationCount >= 5) {
+    score = Math.min(1, score + 0.1);
+  }
 
   score = Math.max(0, Math.min(1, score));
 
@@ -97,7 +135,16 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
     state = 'concerned';
   }
 
-  return { state, score, details };
+  let level: EmotionLevel = 'mild';
+  if (details.directComplaintWords >= 2 || score >= 0.85) {
+    level = 'severe';
+  } else if (score >= 0.6 || details.exclamationCount >= 3 || details.negativeWordCount >= 3) {
+    level = 'moderate';
+  } else if (score >= 0.35) {
+    level = 'mild';
+  }
+
+  return { state, score, level, details };
 }
 
 export function getEmotionColor(state: EmotionState): string {
@@ -129,4 +176,81 @@ export function getEmotionLabel(state: EmotionState, language: Language): string
     ja: { calm: '穏やか', concerned: '要注意', angry: '怒っている' },
   };
   return labels[language][state];
+}
+
+export function getEmotionLevelLabel(level: EmotionLevel, language: Language): string {
+  const labels: Record<Language, Record<EmotionLevel, string>> = {
+    zh: { mild: '轻度不满', moderate: '中度愤怒', severe: '重度投诉' },
+    en: { mild: 'Mild Dissatisfaction', moderate: 'Moderate Anger', severe: 'Severe Complaint' },
+    ja: { mild: '軽度不満', moderate: '中度怒り', severe: '重度苦情' },
+  };
+  return labels[language][level];
+}
+
+export function getEmotionLevelColor(level: EmotionLevel): string {
+  switch (level) {
+    case 'mild':
+      return 'text-amber-600 bg-amber-50 border-amber-200';
+    case 'moderate':
+      return 'text-orange-600 bg-orange-50 border-orange-200';
+    case 'severe':
+      return 'text-red-600 bg-red-50 border-red-200';
+  }
+}
+
+export function evaluateComfortMode(
+  conversation: Conversation,
+  latestEmotionScore: number,
+  latestEmotionLevel: EmotionLevel
+): ComfortModeState {
+  const emotionTrend = conversation.emotionTrend;
+  const recentScores = emotionTrend.slice(-3);
+  const avgEmotionScore =
+    recentScores.length > 0
+      ? recentScores.reduce((a, b) => a + b, 0) / recentScores.length
+      : latestEmotionScore;
+
+  const consecutiveNegativeCount = conversation.consecutiveNegativeCount;
+
+  let enabled = false;
+  let level: EmotionLevel = latestEmotionLevel;
+
+  if (latestEmotionLevel === 'severe') {
+    enabled = true;
+    level = 'severe';
+  } else if (latestEmotionLevel === 'moderate' && consecutiveNegativeCount >= 2) {
+    enabled = true;
+    level = 'moderate';
+  } else if (avgEmotionScore >= 0.5 && consecutiveNegativeCount >= 3) {
+    enabled = true;
+    level = latestEmotionLevel === 'mild' ? 'mild' : latestEmotionLevel;
+  } else if (consecutiveNegativeCount >= 4) {
+    enabled = true;
+    level = 'moderate';
+  }
+
+  if (enabled && avgEmotionScore >= 0.8) {
+    level = 'severe';
+  }
+
+  return {
+    enabled,
+    level,
+    triggeredAt: enabled ? Date.now() : undefined,
+    consecutiveNegativeCount,
+    avgEmotionScore,
+  };
+}
+
+export function isComfortModeRequired(
+  consecutiveNegativeCount: number,
+  avgEmotionScore: number,
+  latestLevel: EmotionLevel
+): boolean {
+  return (
+    latestLevel === 'severe' ||
+    (latestLevel === 'moderate' && consecutiveNegativeCount >= 2) ||
+    (avgEmotionScore >= 0.5 && consecutiveNegativeCount >= 3) ||
+    consecutiveNegativeCount >= 4
+  );
 }

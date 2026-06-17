@@ -2,6 +2,16 @@ export type Language = 'zh' | 'en' | 'ja';
 
 export type EmotionState = 'calm' | 'concerned' | 'angry';
 
+export type EmotionLevel = 'mild' | 'moderate' | 'severe';
+
+export interface ComfortModeState {
+  enabled: boolean;
+  level: EmotionLevel;
+  triggeredAt?: number;
+  consecutiveNegativeCount: number;
+  avgEmotionScore: number;
+}
+
 export type IntentType =
   | 'consultation'
   | 'complaint'
@@ -72,6 +82,7 @@ export interface Conversation {
   satisfaction?: number;
   unknownCount: number;
   consecutiveNegativeCount: number;
+  comfortMode: ComfortModeState;
 }
 
 export interface DailyStat {

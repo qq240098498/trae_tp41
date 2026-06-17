@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { seedConversations, seedTickets, seedStats } from './seedData';
 import { classifyIntent } from '../services/intentClassifier';
-import { analyzeEmotion } from '../services/emotionAnalyzer';
+import { analyzeEmotion, evaluateComfortMode } from '../services/emotionAnalyzer';
 import { detectLanguage } from '../services/multilingualService';
 import { generateReply } from '../services/responseGenerator';
 import {
@@ -146,6 +146,12 @@ const useAppStore = create<AppState>((set, get) => {
         emotionTrend: [],
         unknownCount: 0,
         consecutiveNegativeCount: 0,
+        comfortMode: {
+          enabled: false,
+          level: 'mild',
+          consecutiveNegativeCount: 0,
+          avgEmotionScore: 0,
+        },
       };
       set((s) => {
         const updated = [conv, ...s.conversations];
@@ -190,7 +196,7 @@ const useAppStore = create<AppState>((set, get) => {
           const newEmotionTrend = [...c.emotionTrend, emotionResult.score].slice(-10);
           const newConsec = emotionResult.score >= 0.4 ? c.consecutiveNegativeCount + 1 : 0;
           const newUnknown = intentResult.intent === 'unknown' ? c.unknownCount + 1 : c.unknownCount;
-          return {
+          const tempConv: Conversation = {
             ...c,
             messages: [...c.messages, userMessage],
             updatedAt: now,
@@ -198,6 +204,12 @@ const useAppStore = create<AppState>((set, get) => {
             emotionTrend: newEmotionTrend,
             consecutiveNegativeCount: newConsec,
             unknownCount: newUnknown,
+            comfortMode: c.comfortMode,
+          };
+          const comfortState = evaluateComfortMode(tempConv, emotionResult.score, emotionResult.level);
+          return {
+            ...tempConv,
+            comfortMode: comfortState,
           };
         });
         saveToStorage(StorageKeys.CONVERSATIONS, updatedConvs);
@@ -210,7 +222,8 @@ const useAppStore = create<AppState>((set, get) => {
 
       const replyIntent: IntentType =
         intentResult.intent === 'unknown' ? 'unknown' : intentResult.intent;
-      const replyContent = generateReply(replyIntent, effectiveLang, emotionResult.state, trimmed);
+      const comfortLevel = conv.comfortMode.enabled ? conv.comfortMode.level : undefined;
+      const replyContent = generateReply(replyIntent, effectiveLang, emotionResult.state, trimmed, comfortLevel);
 
       const replyMessage: Message = {
         id: newId('MSG'),

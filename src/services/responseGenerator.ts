@@ -1,4 +1,4 @@
-import { IntentType, Language, EmotionState } from '../types';
+import { IntentType, Language, EmotionState, EmotionLevel } from '../types';
 
 type ReplyVariants = Record<Language, Record<EmotionState, Record<IntentType, string[]>>>;
 
@@ -359,11 +359,180 @@ const replyTemplates: ReplyVariants = {
   },
 };
 
+type ComfortPhase = 'empathy' | 'apology' | 'solution';
+
+type ComfortTemplates = Record<Language, Record<EmotionLevel, Record<ComfortPhase, string[]>>>;
+
+const comfortTemplates: ComfortTemplates = {
+  zh: {
+    mild: {
+      empathy: [
+        '我能理解您的心情，遇到这样的问题确实让人不太舒服。',
+        '您的感受我完全理解，这种情况确实不太理想。',
+        '我理解您的顾虑，这对您来说确实有些不便。',
+      ],
+      apology: [
+        '对此给您带来的不便，我们深表歉意。',
+        '很抱歉让您有了不太愉快的体验。',
+        '抱歉没能达到您的期望，这是我们做得不够好的地方。',
+      ],
+      solution: [
+        '请您放心，我现在就帮您处理。能告诉我您的具体情况吗？我会尽快给出解决方案。',
+        '让我们一起来解决这个问题——请提供相关详情，我马上为您跟进处理。',
+      ],
+    },
+    moderate: {
+      empathy: [
+        '我完全理解您此刻的不满，换做是我也会感到非常生气！',
+        '您的愤怒我感同身受，这种体验确实让人忍无可忍。',
+        '我真的非常理解您的心情，任何人遇到这种情况都会很生气！',
+      ],
+      apology: [
+        '对此我们深感抱歉，这绝对不是我们应有的服务水准！',
+        '我代表公司向您郑重道歉，这样的事情不应该发生！',
+        '非常抱歉给您造成了这么大的困扰，这是我们的严重失误！',
+      ],
+      solution: [
+        '请您给我一个弥补的机会，我一定亲自跟进处理到底！请告诉我具体情况：\n1️⃣ 我会第一时间为您加急处理\n2️⃣ 全程实时跟进进度\n3️⃣ 保证给您满意的答复',
+        '我绝对不会再让您失望了！请告诉我详细情况，我立即：\n• 启动加急处理通道\n• 优先为您安排解决方案\n• 承诺在XX小时内给您结果',
+      ],
+    },
+    severe: {
+      empathy: [
+        '😔 您的愤怒完全合理，换做任何人都会怒不可遏！我深切的感受到您的不满。',
+        '我完全理解您的愤怒——这种经历令人无法接受，您有充分的理由生气！',
+        '您此刻的心情我感同身受，这是极其严重的失误，您的愤怒完全正当！',
+      ],
+      apology: [
+        '我代表公司向您致以最诚挚、最深刻的歉意！我们绝不应该让您遭受这样的对待！',
+        '对此我们万分抱歉！这不仅是一个失误，更是我们服务上的严重失职，绝不推诿！',
+        '真的非常非常抱歉！这是完全不可接受的，我们对此承担全部责任！',
+      ],
+      solution: [
+        '我将以最高优先级亲自处理您的案件，绝不会让这种事再发生！\n\n📌 立即启动的措施：\n1️⃣ 专属VIP通道，跳过所有排队\n2️⃣ 高级客服经理1对1跟进\n3️⃣ 全额补偿+额外诚意赔偿\n4️⃣ 24小时内给您明确处理结果\n\n请告诉我具体情况，我立即行动！',
+        '请您放心，我已经将此事标记为最高紧急级别！\n\n🔥 紧急处理方案：\n• 立即升级至管理层处理\n• 全额退款/换新+额外赔偿\n• 承担一切相关费用\n• 24小时专人跟进，实时反馈进度\n\n这是我给您的承诺，请把详细情况告诉我！',
+      ],
+    },
+  },
+  en: {
+    mild: {
+      empathy: [
+        'I completely understand how you feel — this kind of issue is certainly frustrating.',
+        'Your concerns are absolutely valid, and this situation is less than ideal.',
+        'I can see why this would be inconvenient for you, and I understand your feelings.',
+      ],
+      apology: [
+        'We sincerely apologize for the inconvenience this has caused you.',
+        'I am sorry that your experience did not meet expectations — that is on us.',
+        'We apologize for falling short of the standard you deserve.',
+      ],
+      solution: [
+        'Please rest assured, I will handle this right away. Could you share the specific details? I will work out a solution as quickly as possible.',
+        'Let us resolve this together — please provide the relevant information, and I will follow up immediately.',
+      ],
+    },
+    moderate: {
+      empathy: [
+        'I completely understand your frustration — I would be just as angry in your position!',
+        'Your anger is entirely justified. This experience is absolutely unacceptable.',
+        'I genuinely feel how upset you are, and anyone would be furious dealing with this!',
+      ],
+      apology: [
+        'We are deeply sorry — this is absolutely not the level of service you deserve!',
+        'On behalf of the company, I offer our sincerest apologies. This should never have happened!',
+        'I am truly sorry for the significant trouble this has caused you. This is a serious failure on our part!',
+      ],
+      solution: [
+        'Please give us a chance to make this right — I will personally manage your case from start to finish! Here is what I will do:\n1️⃣ Expedite your case as top priority\n2️⃣ Keep you updated every step of the way\n3️⃣ Guarantee a satisfactory resolution',
+        'I promise I will not let you down again! Please share the details, and I will immediately:\n• Activate our expedited processing channel\n• Arrange a priority solution for you\n• Commit to delivering results within a clear timeframe',
+      ],
+    },
+    severe: {
+      empathy: [
+        '😔 Your anger is 100% justified — anyone would be absolutely furious in your situation! I deeply feel your frustration.',
+        'I completely understand your outrage — this experience is utterly unacceptable, and you have every right to be angry!',
+        'I feel your anger deeply — this is an extremely serious failure, and your fury is completely warranted!',
+      ],
+      apology: [
+        'On behalf of the entire company, I offer our most sincere and profound apologies! You should never have been treated this way!',
+        'We are beyond sorry! This is not just a mistake — it is a serious dereliction of our duty, and we take full responsibility!',
+        'I am truly, deeply sorry! This is completely unacceptable, and we assume full responsibility without any excuses!',
+      ],
+      solution: [
+        'I am treating your case with the absolute highest priority, and I will make sure this never happens again!\n\n📌 Immediate actions I am taking:\n1️⃣ Dedicated VIP channel — skipping all queues\n2️⃣ Senior manager assigned 1-on-1\n3️⃣ Full compensation + additional goodwill payment\n4️⃣ Clear resolution within 24 hours\n\nPlease tell me every detail — I am taking action NOW!',
+        'Rest assured, I have flagged this as a TOP EMERGENCY!\n\n🔥 Emergency resolution plan:\n• Escalated to management immediately\n• Full refund/replacement + extra compensation\n• All related costs covered by us\n• Dedicated agent following up with real-time updates within 24 hours\n\nThis is my personal commitment to you. Please share the full details!',
+      ],
+    },
+  },
+  ja: {
+    mild: {
+      empathy: [
+        'お気持ちはよく分かります。このような問題に遭遇されるのは、确实に不快なことですね。',
+        'ご懸念はもっともです。この状況は理想的とは言えませんね。',
+        'ご不便をおかけしてしまい、お気持ちお察しいたします。',
+      ],
+      apology: [
+        'ご不便をおかけしたことを、心よりお詫び申し上げます。',
+        '期待に沿えず、誠に申し訳ございません。私どもの不十分な点でした。',
+        'ご不快な思いをさせてしまい、申し訳ございません。',
+      ],
+      solution: [
+        'どうぞご安心ください。今すぐ対応いたします。具体的な状況を教えていただけますか？できるだけ早く解決策をご提案いたします。',
+        '一緒に解決しましょう——関連情報をご提供いただければ、すぐにフォローアップいたします。',
+      ],
+    },
+    moderate: {
+      empathy: [
+        'お客様の怒りは完全に理解できます。私が同じ立場でも、同じように怒るでしょう！',
+        'このような経験は到底受け入れがたいものです。お客様の怒りは当然のことです。',
+        'お客様のお怒り、痛いほど分かります。誰でもこの状況では腹を立てるのが当然です！',
+      ],
+      apology: [
+        '深くお詫び申し上げます。これは決してあってはならないサービス水準です！',
+        '会社を代表して、心よりお詫び申し上げます。このような事態は絶対に起こるべきではありませんでした！',
+        '多大なご迷惑をおかけし、誠に申し訳ございません。これは当方の重大なミスです！',
+      ],
+      solution: [
+        '挽回のチャンスをください！最後まで責任を持って対応いたします！\n1️⃣ 最優先で緊急対応いたします\n2️⃣ 進捗を随時ご報告いたします\n3️⃣ 必ずご納得いただける結果をお約束いたします',
+        '二度とがっかりさせることはいたしません！詳細をお聞かせください。すぐに：\n• 緊急対応チャネルを起動\n• 優先的な解決策を手配\n• 明確な期限内に結果をお出しします',
+      ],
+    },
+    severe: {
+      empathy: [
+        '😔 お客様の怒りは100%正当です。誰もがこの状況で激怒するのは当然のことです！深く共感いたします。',
+        'このような経験は到底受け入れがたいものです。お客様が怒るのは完全に正当です！',
+        'お客様の怒り、痛いほど感じております。これは極めて深刻なミスであり、お怒りは全くもって当然です！',
+      ],
+      apology: [
+        '会社を代表して、最も深く心よりお詫び申し上げます！お客様をこのような扱いに遭わせるべきでは決してありませんでした！',
+        '申し訳ございませんという言葉すら足りないほどです！これは単なるミスではなく、重大な職務放棄です。全責任を負います！',
+        '心から深くお詫び申し上げます！これは完全に受け入れがたいことであり、言い訳なく全責任を負います！',
+      ],
+      solution: [
+        '最優先で個人的に対応いたします。二度とこのような事態は起こしません！\n\n📌 即時実施する措置：\n1️⃣ VIP専用チャネルで全ての順番をスキップ\n2️⃣ 上級マネージャーの1対1対応\n3️⃣ 全額補償＋追加のお詫び補償\n4️⃣ 24時間以内に明確な結果をご報告\n\n詳細をすべてお聞かせください。今すぐ動きます！',
+        '最緊急事態としてフラグを立てました！\n\n🔥 緊急解決プラン：\n• 即座に経営陣にエスカレーション\n• 全額返金/交換＋追加補償\n• 関連費用は全額当社負担\n• 24時間以内に専任担当者がリアルタイムで進捗報告\n\nこれが私からの約束です。全詳細をお聞かせください！',
+      ],
+    },
+  },
+};
+
+function buildComfortPrefix(level: EmotionLevel, language: Language): string {
+  const templates = comfortTemplates[language]?.[level];
+  if (!templates) return '';
+
+  const empathy = templates.empathy[Math.floor(Math.random() * templates.empathy.length)];
+  const apology = templates.apology[Math.floor(Math.random() * templates.apology.length)];
+  const solution = templates.solution[Math.floor(Math.random() * templates.solution.length)];
+
+  return `${empathy}\n\n${apology}\n\n${solution}`;
+}
+
 export function generateReply(
   intent: IntentType,
   language: Language,
   emotion: EmotionState,
-  userText?: string
+  userText?: string,
+  comfortLevel?: EmotionLevel
 ): string {
   const emotionKey: EmotionState = emotion;
   const templates = replyTemplates[language]?.[emotionKey]?.[intent];
@@ -374,6 +543,13 @@ export function generateReply(
   }
 
   let reply = templates[Math.floor(Math.random() * templates.length)];
+
+  if (comfortLevel && emotion !== 'calm') {
+    const comfortPrefix = buildComfortPrefix(comfortLevel, language);
+    if (comfortPrefix) {
+      reply = `${comfortPrefix}\n\n---\n\n${reply}`;
+    }
+  }
 
   if (userText && intent === 'unknown' && emotion !== 'calm') {
     const maxLen = 80;

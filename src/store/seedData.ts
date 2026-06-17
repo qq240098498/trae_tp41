@@ -19,6 +19,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.1, 0.15, 0.08, 0.12, 0.05],
     satisfaction: 5,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.1 },
     messages: [
       { id: 'm1', role: 'user', content: '你好，我想查询一下订单AB12345678的物流', timestamp: now - 1 * day, language: 'zh', emotion: 'calm', emotionScore: 0.1, intent: 'shipping' },
       { id: 'm2', role: 'assistant', content: '您好，我来帮您查询物流状态。请稍等...订单AB12345678已于昨天下午由顺丰揽收，预计明天上午送达。如有延迟请随时联系我！', timestamp: now - 1 * day + 3000, language: 'zh', intent: 'shipping' },
@@ -36,6 +37,7 @@ const seedConversations: Conversation[] = [
     unknownCount: 0,
     consecutiveNegativeCount: 3,
     emotionTrend: [0.6, 0.75, 0.82, 0.88, 0.72],
+    comfortMode: { enabled: true, level: 'severe', consecutiveNegativeCount: 3, avgEmotionScore: 0.75, triggeredAt: now - 2 * day },
     messages: [
       { id: 'm1', role: 'user', content: '我买的手机才用了三天就坏了！什么垃圾质量！！！订单CD99887766', timestamp: now - 2 * day, language: 'zh', emotion: 'angry', emotionScore: 0.75, intent: 'complaint' },
       { id: 'm2', role: 'assistant', content: '真的太抱歉了！花钱买的东西出问题，任谁都会火大，我完全理解。您放心，我现在就帮您启动VIP绿色通道处理：1️⃣ 免费上门取件 2️⃣ 优先换新 3️⃣ 额外补偿。请告诉我订单号，立刻安排！', timestamp: now - 2 * day + 4000, language: 'zh', intent: 'after_sales' },
@@ -52,6 +54,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.2, 0.25, 0.3, 0.22, 0.15],
     satisfaction: 4,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.22 },
     messages: [
       { id: 'm1', role: 'user', content: 'Hello! I need help with my account password.', timestamp: now - 3 * day, language: 'en', emotion: 'concerned', emotionScore: 0.3, intent: 'account' },
       { id: 'm2', role: 'assistant', content: 'I am happy to help with your account! Here are the steps to reset your password:\n\n1. Click "Forgot Password" on the login page\n2. Enter your registered email address\n3. Check your inbox for the reset link\n4. Follow the link and create a new password\n\nIf you do not receive the email within 10 minutes, please check your spam folder or contact us again!', timestamp: now - 3 * day + 3500, language: 'en', intent: 'account' },
@@ -68,6 +71,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.08, 0.12, 0.1, 0.05],
     satisfaction: 5,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.08 },
     messages: [
       { id: 'm1', role: 'user', content: '请问你们的产品Pro X200有什么规格参数？', timestamp: now - 4 * day, language: 'zh', emotion: 'calm', emotionScore: 0.08, intent: 'product_info' },
       { id: 'm2', role: 'assistant', content: '您好！Pro X200 产品规格如下：\n\n📱 屏幕：6.7英寸 2K AMOLED 120Hz\n🔋 电池：5500mAh 支持100W快充\n📷 相机：5000万主摄+1200万超广角+800万长焦\n💾 存储：8+256GB / 12+512GB / 16+1TB\n⚡ 芯片：旗舰处理器\n\n支持12期免息分期，全国联保12个月。需要了解具体哪方面呢？', timestamp: now - 4 * day + 4000, language: 'zh', intent: 'product_info' },
@@ -84,6 +88,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.1, 0.15, 0.08, 0.1],
     satisfaction: 4,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.1 },
     messages: [
       { id: 'm1', role: 'user', content: 'こんにちは！返品をお願いしたいです。注文番号はJP2024567890です。', timestamp: now - 5 * day, language: 'ja', emotion: 'calm', emotionScore: 0.1, intent: 'refund' },
       { id: 'm2', role: 'assistant', content: '承知いたしました！返金をお手伝いいたします。注文番号JP2024567890を確認しましたので、返金手続きを開始いたします。\n\n【返金の流れ】\n• 審査：1-3営業日\n• 返金先：お支払い方法へ\n• 反映まで：銀行振込の場合1-7日かかることがあります\n\n進捗はマイページでいつでも確認できます！', timestamp: now - 5 * day + 4500, language: 'ja', intent: 'refund' },
@@ -100,6 +105,7 @@ const seedConversations: Conversation[] = [
     unknownCount: 1,
     consecutiveNegativeCount: 2,
     emotionTrend: [0.3, 0.42, 0.55, 0.48],
+    comfortMode: { enabled: true, level: 'moderate', consecutiveNegativeCount: 2, avgEmotionScore: 0.48, triggeredAt: now - 6 * day },
     messages: [
       { id: 'm1', role: 'user', content: '你们客服到底在吗？我等了好久都没人回复我之前的消息，我的退款EF11223344到底处理了没有？', timestamp: now - 6 * day, language: 'zh', emotion: 'concerned', emotionScore: 0.42, intent: 'refund' },
       { id: 'm2', role: 'assistant', content: '非常抱歉让您等了这么久！我理解您的心情，退款的事我会帮您加急处理的。请稍等我查一下状态...', timestamp: now - 6 * day + 4000, language: 'zh', intent: 'refund' },
@@ -116,6 +122,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.15, 0.12, 0.1],
     satisfaction: 5,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.12 },
     messages: [
       { id: 'm1', role: 'user', content: 'Hi there! Just wanted to say the product arrived today and I love it! Great quality!', timestamp: now - 7 * day, language: 'en', emotion: 'calm', emotionScore: 0.1, intent: 'thanks' },
       { id: 'm2', role: 'assistant', content: 'Thank you so much for your wonderful feedback! So glad the product arrived and that you love it! \n\nIf you have a spare moment, please consider leaving us a review - it would help other shoppers discover our products too! \n\nEnjoy your new purchase! 😊', timestamp: now - 7 * day + 3500, language: 'en', intent: 'thanks' },
@@ -131,6 +138,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.12, 0.08, 0.1, 0.05],
     satisfaction: 4,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.08 },
     messages: [
       { id: 'm1', role: 'user', content: '在吗？我想问一下怎么绑定微信账号？', timestamp: now - 4 * hr, language: 'zh', emotion: 'calm', emotionScore: 0.12, intent: 'account' },
       { id: 'm2', role: 'assistant', content: '您好！关于账户绑定问题，以下是操作步骤：\n\n📌 微信账号绑定步骤：\n1. 登录后进入「个人中心」\n2. 点击「设置」-「账号与安全」\n3. 选择「第三方账号绑定」\n4. 点击「微信」图标\n5. 扫描弹出的二维码完成绑定\n\n绑定后可以使用微信快捷登录哦！', timestamp: now - 4 * hr + 3000, language: 'zh', intent: 'account' },
@@ -147,6 +155,7 @@ const seedConversations: Conversation[] = [
     consecutiveNegativeCount: 0,
     emotionTrend: [0.1, 0.05, 0.08],
     satisfaction: 5,
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.07 },
     messages: [
       { id: 'm1', role: 'user', content: 'Hi，请问你们的售后服务政策是什么？', timestamp: now - 2 * hr, language: 'zh', emotion: 'calm', emotionScore: 0.1, intent: 'after_sales' },
       { id: 'm2', role: 'assistant', content: '感谢反馈！我们的售后团队会竭诚为您服务。以下是售后政策摘要：\n\n🛡️ 【售后服务】\n✓ 7天无理由退换货（商品完好）\n✓ 12个月全国联保\n✓ 质量问题：免费上门取件+换新/全额退款\n✓ 非质量问题：买家承担寄回运费\n\n请描述一下具体的故障现象和购买时间，我将为您匹配最合适的解决方案（维修/换新/退款）。', timestamp: now - 2 * hr + 4000, language: 'zh', intent: 'after_sales' },
@@ -162,6 +171,7 @@ const seedConversations: Conversation[] = [
     unknownCount: 0,
     consecutiveNegativeCount: 0,
     emotionTrend: [0.08],
+    comfortMode: { enabled: false, level: 'mild', consecutiveNegativeCount: 0, avgEmotionScore: 0.08 },
     messages: [
       { id: 'm1', role: 'user', content: 'Hello! I would like to ask about your premium subscription plan.', timestamp: now - 1 * hr, language: 'en', emotion: 'calm', emotionScore: 0.08, intent: 'consultation' },
     ],
