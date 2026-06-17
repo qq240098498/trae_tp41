@@ -28,7 +28,14 @@ export type IntentType =
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export type TicketStatus = 'open' | 'processing' | 'pending' | 'resolved' | 'closed';
+export type TicketTriggerReason =
+  | 'human_request'
+  | 'rounds_exceeded'
+  | 'knowledge_base_exceeded'
+  | 'emotion_escalation'
+  | 'unknown_escalation';
+
+export type TicketStatus = 'open' | 'processing' | 'pending' | 'resolved' | 'closed' | 'queued';
 
 export interface Message {
   id: string;
@@ -63,10 +70,16 @@ export interface Ticket {
   notes?: TicketNote[];
   language: Language;
   emotionLevel: number;
+  triggerReason?: TicketTriggerReason;
+  assignedQueue?: string;
+  queuePosition?: number;
   keyEntities?: {
     orderId?: string;
     productName?: string;
     amount?: string;
+    userDemand?: string;
+    attemptedSolutions?: string[];
+    problemType?: string;
   };
 }
 

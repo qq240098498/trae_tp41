@@ -269,8 +269,10 @@ const useAppStore = create<AppState>((set, get) => {
         let newTickets = s.tickets;
         let updatedStats = s.stats;
 
-        if (!updatedConv.ticketId && shouldCreateTicket(updatedConv, intentResult.intent, emotionResult.score)) {
-          const { ticket, notifyMessage } = createTicket(updatedConv, effectiveLang);
+        if (!updatedConv.ticketId) {
+          const ticketCheck = shouldCreateTicket(updatedConv, intentResult.intent, emotionResult.score);
+          if (ticketCheck.shouldCreate) {
+          const { ticket, notifyMessage } = createTicket(updatedConv, effectiveLang, ticketCheck.reason, s.tickets.length);
           createdTicket = ticket;
           newTickets = [ticket, ...s.tickets];
 
@@ -300,6 +302,7 @@ const useAppStore = create<AppState>((set, get) => {
 
           saveToStorage(StorageKeys.TICKETS, newTickets);
           saveToStorage(StorageKeys.STATS_CACHE, updatedStats);
+          }
         }
 
         saveToStorage(StorageKeys.CONVERSATIONS, updatedConvs);

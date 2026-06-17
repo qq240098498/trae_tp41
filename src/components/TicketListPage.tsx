@@ -27,6 +27,7 @@ import { intentTypeLabels, priorityLabels } from '../services/ticketGenerator';
 import EmotionBadge from './EmotionBadge';
 
 const statusConfig: Record<TicketStatus, { color: string; bg: string; border: string; icon: React.ElementType }> = {
+  queued: { color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', icon: Clock },
   open: { color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', icon: AlertCircle },
   processing: { color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', icon: Loader2 },
   pending: { color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', icon: Clock },
@@ -152,7 +153,7 @@ export default function TicketListPage() {
         </div>
 
         <div className="mt-4 flex items-center gap-2 flex-wrap">
-          {(['all', 'open', 'processing', 'pending', 'resolved', 'closed'] as const).map((s) => {
+          {(['all', 'queued', 'open', 'processing', 'pending', 'resolved', 'closed'] as const).map((s) => {
             const count = statusCounts[s] || 0;
             const label = s === 'all' ? ui.all : ui[s as keyof typeof ui] as string;
             return (
@@ -308,6 +309,7 @@ function TicketDetail({
   const StatusIcon = sc.icon;
 
   const nextStatuses: Record<TicketStatus, TicketStatus[]> = {
+    queued: ['open', 'processing'],
     open: ['processing', 'pending'],
     processing: ['pending', 'resolved'],
     pending: ['processing', 'resolved'],
@@ -426,12 +428,17 @@ function TicketDetail({
                 </div>
               )}
 
-              {ticket.keyEntities && (ticket.keyEntities.orderId || ticket.keyEntities.productName || ticket.keyEntities.amount) && (
+              {ticket.keyEntities && (ticket.keyEntities.orderId || ticket.keyEntities.productName || ticket.keyEntities.amount || ticket.keyEntities.userDemand || ticket.keyEntities.problemType) && (
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">
-                    {lang === 'zh' ? '关键实体' : lang === 'ja' ? 'キーエンティティ' : 'Key Entities'}
+                    {lang === 'zh' ? '关键要素' : lang === 'ja' ? 'キー要素' : 'Key Elements'}
                   </p>
                   <div className="flex flex-wrap gap-2">
+                    {ticket.keyEntities.problemType && (
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-200">
+                        {lang === 'zh' ? '问题类型：' : lang === 'ja' ? '問題タイプ：' : 'Type: '}{intentTypeLabels[lang][ticket.keyEntities.problemType as keyof typeof intentTypeLabels[typeof lang]] || ticket.keyEntities.problemType}
+                      </span>
+                    )}
                     {ticket.keyEntities.orderId && (
                       <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
                         #{ticket.keyEntities.orderId}
@@ -445,6 +452,57 @@ function TicketDetail({
                     {ticket.keyEntities.amount && (
                       <span className="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-xs font-semibold border border-green-200">
                         ¥{ticket.keyEntities.amount}
+                      </span>
+                    )}
+                  </div>
+                  {ticket.keyEntities.userDemand && (
+                    <div className="mt-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                      <span className="text-[10px] text-amber-500 font-semibold uppercase tracking-wider">
+                        {lang === 'zh' ? '用户诉求' : lang === 'ja' ? 'ユーザーの要望' : 'User Demand'}
+                      </span>
+                      <p className="text-xs text-amber-700 mt-0.5">{ticket.keyEntities.userDemand}</p>
+                    </div>
+                  )}
+                  {ticket.keyEntities.attemptedSolutions && ticket.keyEntities.attemptedSolutions.length > 0 && (
+                    <div className="mt-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                        {lang === 'zh' ? '已尝试方案' : lang === 'ja' ? '試した解決策' : 'Attempted Solutions'}
+                      </span>
+                      <ul className="mt-0.5 space-y-0.5">
+                        {ticket.keyEntities.attemptedSolutions.map((sol, i) => (
+                          <li key={i} className="text-xs text-slate-600 flex items-start gap-1">
+                            <span className="text-slate-400 mt-0.5">•</span>
+                            {sol}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {ticket.triggerReason && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">
+                    {lang === 'zh' ? '自动生成信息' : lang === 'ja' ? '自動生成情報' : 'Auto-generation Info'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold border border-indigo-200">
+                      {lang === 'zh' ? '触发：' : lang === 'ja' ? 'トリガー：' : 'Trigger: '}
+                      {ticket.triggerReason === 'human_request' ? (lang === 'zh' ? '用户要求人工' : 'Human request') :
+                       ticket.triggerReason === 'rounds_exceeded' ? (lang === 'zh' ? '超3轮未解决' : '3+ rounds') :
+                       ticket.triggerReason === 'knowledge_base_exceeded' ? (lang === 'zh' ? '超出知识库' : 'Beyond KB') :
+                       ticket.triggerReason === 'emotion_escalation' ? (lang === 'zh' ? '情绪升级' : 'Emotion') :
+                       (lang === 'zh' ? '无法识别' : 'Unknown')}
+                    </span>
+                    {ticket.assignedQueue && (
+                      <span className="px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-700 text-xs font-semibold border border-cyan-200">
+                        {lang === 'zh' ? '队列：' : lang === 'ja' ? 'キュー：' : 'Queue: '}{ticket.assignedQueue}
+                      </span>
+                    )}
+                    {ticket.queuePosition != null && (
+                      <span className="px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 text-xs font-semibold border border-violet-200">
+                        {lang === 'zh' ? '位置 #' : lang === 'ja' ? '順位 #' : 'Pos #'}{ticket.queuePosition}
                       </span>
                     )}
                   </div>
