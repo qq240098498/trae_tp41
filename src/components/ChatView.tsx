@@ -262,7 +262,7 @@ export default function ChatView() {
               </h3>
               <p className="text-sm text-slate-500 mb-6">{uiConv.chatSubtitle}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
-                {quickQuestions.slice(0, 4).map((qq, i) => (
+                {quickQuestions.map((qq, i) => (
                   <motion.button
                     key={qq.label}
                     initial={{ opacity: 0, y: 10 }}
@@ -272,7 +272,11 @@ export default function ChatView() {
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleQuickQuestion(qq.label, qq.intent)}
                     disabled={conv.status === 'resolved'}
-                    className="p-3.5 rounded-2xl bg-white border border-slate-200 text-sm text-slate-700 hover:border-ai-300 hover:bg-ai-50/50 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
+                    className={`p-3.5 rounded-2xl bg-white border text-sm text-slate-700 hover:border-ai-300 hover:bg-ai-50/50 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 ${
+                      qq.intent === 'complaint' ? 'border-orange-200 bg-orange-50/30' :
+                      qq.intent === 'human_request' ? 'border-ai-200 bg-ai-50/30' :
+                      'border-slate-200'
+                    }`}
                   >
                     {qq.label}
                   </motion.button>
