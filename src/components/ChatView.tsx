@@ -185,7 +185,7 @@ export default function ChatView() {
                 <span className="hidden sm:inline">{uiConv.newConversation}</span>
               </button>
 
-              {conv.status === 'active' && messages.length >= 3 && (
+              {messages.length >= 3 && conv.status !== 'resolved' && (
                 <button
                   onClick={() => setShowSatisfaction(true)}
                   className="btn-ai !px-3 !py-2 flex items-center gap-1.5 text-xs"
@@ -219,6 +219,34 @@ export default function ChatView() {
           </div>
         </header>
 
+        {conv.status === 'ticket_created' && conv.ticketId && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-4 md:mx-8 mt-4 p-3.5 rounded-2xl bg-gradient-to-r from-ai-50 via-primary-50 to-amber-50 border border-ai-200/60 flex items-center gap-3"
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ai-500 to-primary-500 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4.5 h-4.5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-700">
+                {currentLang === 'zh'
+                  ? `工单已创建（${conv.ticketId}），您仍可继续对话补充信息`
+                  : currentLang === 'ja'
+                  ? `チケット作成済み（${conv.ticketId}）、引き続きチャット可能です`
+                  : `Ticket created (${conv.ticketId}), you can still continue chatting`}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {currentLang === 'zh'
+                  ? '人工客服将在30分钟内开始处理，您可以继续提问或稍后查看工单进度'
+                  : currentLang === 'ja'
+                  ? '担当者が30分以内に対応を開始します。追加のご質問があればどうぞ'
+                  : 'An agent will start within 30 mins. Feel free to ask more questions'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         <div className="flex-1 overflow-y-auto scrollbar-thin px-4 md:px-8 py-6 space-y-5 bg-gradient-to-b from-slate-50/50 via-white/0 to-transparent">
           {messages.length === 0 && (
             <motion.div
@@ -243,7 +271,8 @@ export default function ChatView() {
                     whileHover={{ scale: 1.02, x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleQuickQuestion(qq.label, qq.intent)}
-                    className="p-3.5 rounded-2xl bg-white border border-slate-200 text-sm text-slate-700 hover:border-ai-300 hover:bg-ai-50/50 shadow-sm hover:shadow-md transition-all duration-200"
+                    disabled={conv.status === 'resolved'}
+                    className="p-3.5 rounded-2xl bg-white border border-slate-200 text-sm text-slate-700 hover:border-ai-300 hover:bg-ai-50/50 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50"
                   >
                     {qq.label}
                   </motion.button>
@@ -291,7 +320,7 @@ export default function ChatView() {
           <div ref={messagesEndRef} />
         </div>
 
-        {conv.status === 'active' && messages.length > 3 && messages.length % 4 === 0 && (
+        {conv.status !== 'resolved' && messages.length > 3 && messages.length % 4 === 0 && (
           <div className="px-4 md:px-8 pb-2 -mt-3">
             <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-2">
               💡 {uiConv.quickQuestions}
@@ -301,7 +330,7 @@ export default function ChatView() {
                 <button
                   key={qq.label}
                   onClick={() => handleQuickQuestion(qq.label, qq.intent)}
-                  disabled={isTyping}
+                  disabled={isTyping || conv.status === 'resolved'}
                   className="px-3 py-1.5 text-xs rounded-full bg-white/70 border border-slate-200 text-slate-600 hover:bg-ai-50 hover:border-ai-200 hover:text-ai-700 transition-all duration-200 disabled:opacity-50"
                 >
                   {qq.label}
@@ -320,7 +349,7 @@ export default function ChatView() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={uiConv.inputPlaceholder}
-                disabled={isTyping || conv.status !== 'active'}
+                disabled={isTyping || conv.status === 'resolved'}
                 className="input-field !py-4 pl-5 pr-14 rounded-2xl !text-base shadow-lg shadow-slate-200/50"
               />
               <div className="absolute right-3 bottom-1/2 translate-y-1/2 flex items-center gap-1 text-[10px] text-slate-400">
@@ -330,7 +359,7 @@ export default function ChatView() {
             </div>
             <button
               onClick={() => handleSend()}
-              disabled={!input.trim() || isTyping || conv.status !== 'active'}
+              disabled={!input.trim() || isTyping || conv.status === 'resolved'}
               className="btn-primary !px-5 !py-4 rounded-2xl flex items-center gap-2 shadow-xl shadow-primary-500/30"
             >
               <Send className="w-5 h-5" />

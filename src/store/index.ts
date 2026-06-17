@@ -116,7 +116,7 @@ const useAppStore = create<AppState>((set, get) => {
       let conv = state.activeConversationId
         ? state.conversations.find((c) => c.id === state.activeConversationId)
         : null;
-      if (!conv || conv.status !== 'active') {
+      if (!conv || conv.status === 'resolved') {
         const newConvId = state.newConversation();
         conv = get().conversations.find((c) => c.id === newConvId)!;
       }
