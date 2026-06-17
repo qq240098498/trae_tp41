@@ -6,19 +6,19 @@ const negativeWords: Record<Language, string[]> = {
     '虚假', '被骗', '投诉', '差评', '可恶', '可恨', '无语', '崩溃', '炸了', '服了',
     '不负责任', '不负责', '骗人', '忽悠', '态度差', '效率低', '太慢了', '等太久',
     '不合理', '过分', '离谱', '破', '烂', '垃圾公司', '什么玩意', '垃圾产品',
-    '!!!', '！！！', '气死人', '气死我', '搞什么', '凭什么', '垃圾服务',
+    '气死人', '气死我', '搞什么', '凭什么', '垃圾服务',
   ],
   en: [
     'angry', 'furious', 'hate', 'terrible', 'awful', 'worst', 'horrible', 'disappointed',
     'frustrated', 'annoyed', 'mad', 'disgusting', 'sucks', 'bullshit', 'crap', 'fraud',
     'scam', 'unacceptable', 'outrageous', 'ridiculous', 'useless', 'pathetic', 'shitty',
     'fake', 'cheated', 'lied', 'liar', 'broken', 'defective', 'terrible service',
-    'never again', 'waste of money', 'poor quality', 'bad experience', '!!!',
+    'never again', 'waste of money', 'poor quality', 'bad experience',
   ],
   ja: [
     '怒ってる', '最悪', 'ひどい', '嫌', '嫌い', 'がっかり', '腹立たしい', 'むかつく',
     'だまされた', '不正', 'ダメ', 'でたらめ', 'ふざけるな', '許せない', '頭にくる',
-    'イライラ', '不満', '苦情', '文句', '最低', '!!!', '！！！',
+    'イライラ', '不満', '苦情', '文句', '最低',
   ],
 };
 
@@ -107,26 +107,33 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
 
   const textLength = Math.max(1, text.length);
 
+  const exclamationWeight = details.exclamationCount >= 2
+    ? Math.log2(details.exclamationCount) * 0.6
+    : 0;
+
+  const shortTextPenalty = textLength < 10 ? Math.max(0.3, textLength / 10) : 1;
+
   const rawScore =
     (details.negativeWordCount * 2.5 +
-      details.exclamationCount * 0.8 +
-      details.uppercaseRatio * 8 +
+      exclamationWeight +
+      details.uppercaseRatio * 6 +
       details.repeatedChars * 1.5 +
       details.directComplaintWords * 4.0 -
-      details.positiveWordCount * 1.2) /
-    Math.sqrt(textLength);
+      details.positiveWordCount * 1.5) /
+    Math.sqrt(textLength) *
+    shortTextPenalty;
 
-  let score = 1 / (1 + Math.exp(-rawScore * 2));
+  let score = 1 / (1 + Math.exp(-rawScore * 2.5));
 
   if (details.directComplaintWords > 0) {
     score = Math.min(1, score + 0.15 * details.directComplaintWords);
   }
 
-  if (details.exclamationCount >= 5) {
-    score = Math.min(1, score + 0.1);
-  }
-
   score = Math.max(0, Math.min(1, score));
+
+  if (details.negativeWordCount === 0 && details.directComplaintWords === 0 && details.exclamationCount < 3) {
+    score = Math.min(score, 0.35);
+  }
 
   let state: EmotionState = 'calm';
   if (score >= 0.7) {
@@ -136,12 +143,19 @@ export function analyzeEmotion(text: string, language: Language): EmotionResult 
   }
 
   let level: EmotionLevel = 'mild';
-  if (details.directComplaintWords >= 2 || score >= 0.85) {
+  const hasStrongNegativity = details.negativeWordCount >= 2 || details.directComplaintWords >= 1;
+  if (details.directComplaintWords >= 2 || (score >= 0.85 && hasStrongNegativity)) {
     level = 'severe';
-  } else if (score >= 0.6 || details.exclamationCount >= 3 || details.negativeWordCount >= 3) {
+  } else if ((score >= 0.6 && hasStrongNegativity) || (details.exclamationCount >= 4 && details.negativeWordCount >= 1)) {
     level = 'moderate';
-  } else if (score >= 0.35) {
+  } else if (score >= 0.35 && hasStrongNegativity) {
     level = 'mild';
+  }
+
+  if (!hasStrongNegativity && details.exclamationCount < 3) {
+    level = 'mild';
+    state = score >= 0.5 ? 'concerned' : 'calm';
+    score = Math.min(score, 0.45);
   }
 
   return { state, score, level, details };

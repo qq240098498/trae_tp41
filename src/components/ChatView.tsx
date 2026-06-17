@@ -111,7 +111,10 @@ export default function ChatView() {
 
   const handleQuickQuestion = async (label: string, _intent: IntentType) => {
     if (isTyping) return;
-    const cleaned = label.replace(/^[\p{Emoji_Presentation}\s]+/u, '').trim();
+    const cleaned = label
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u{200D}\u{FE0F}\u{20E3}]/gu, '')
+      .replace(/[🔍📦💳🛠⚠⚠️ℹ👤👨‍💼💡❓]/g, '')
+      .trim();
     await sendUserMessage(cleaned);
   };
 
