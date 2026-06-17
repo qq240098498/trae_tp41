@@ -16,6 +16,9 @@ import {
   AlertCircle,
   Heart,
   ShieldAlert,
+  Lock,
+  Unlock,
+  ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store';
@@ -48,6 +51,26 @@ function getIntentLabel(intent?: IntentType, lang?: Language): string {
       shipping: '配送', product_info: '製品', account: 'ｱｶｳﾝﾄ', greeting: '挨拶',
       thanks: '感謝', farewell: '別れ', human_request: '人間', unknown: '不明',
     },
+    ko: {
+      consultation: '문의', complaint: '불만', after_sales: 'AS', refund: '환불',
+      shipping: '배송', product_info: '제품', account: '계정', greeting: '인사',
+      thanks: '감사', farewell: '작별', human_request: '상담원', unknown: '미정',
+    },
+    fr: {
+      consultation: 'Consult', complaint: 'Réclam', after_sales: 'SAV', refund: 'Rembours',
+      shipping: 'Livrais', product_info: 'Produit', account: 'Compte', greeting: 'Salut',
+      thanks: 'Merci', farewell: 'Au revoir', human_request: 'Agent', unknown: 'Inconnu',
+    },
+    de: {
+      consultation: 'Beratung', complaint: 'Beschw', after_sales: 'Service', refund: 'Rückerst',
+      shipping: 'Versand', product_info: 'Produkt', account: 'Konto', greeting: 'Hallo',
+      thanks: 'Danke', farewell: 'Tschüss', human_request: 'Mitarbeiter', unknown: 'Unbekannt',
+    },
+    es: {
+      consultation: 'Consult', complaint: 'Queja', after_sales: 'Postventa', refund: 'Reembol',
+      shipping: 'Envío', product_info: 'Producto', account: 'Cuenta', greeting: 'Hola',
+      thanks: 'Gracias', farewell: 'Adiós', human_request: 'Agente', unknown: 'Desconocido',
+    },
   };
   return labels[lang]?.[intent] || intent;
 }
@@ -77,6 +100,7 @@ export default function ChatView() {
   const [input, setInput] = useState('');
   const [showSatisfaction, setShowSatisfaction] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -177,21 +201,84 @@ export default function ChatView() {
                 />
               )}
 
-              <div className="flex items-center rounded-xl bg-white/80 border border-slate-200 overflow-hidden">
-                {(['zh', 'en', 'ja'] as Language[]).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => updateConversationLanguage(conv.id, lang)}
-                    className={`flex items-center gap-1 px-3 py-2 text-xs font-semibold transition-all duration-200 ${
-                      currentLang === lang
-                        ? 'bg-gradient-to-r from-ai-500 to-primary-500 text-white shadow-sm'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span>{langLabels[lang].flag}</span>
-                    <Languages className="w-3 h-3" />
-                  </button>
-                ))}
+              <div className="relative">
+                <button
+                  onClick={() => setShowLangMenu(!showLangMenu)}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl border transition-all duration-200 ${
+                    conv.languageLocked
+                      ? 'bg-gradient-to-r from-ai-500 to-primary-500 text-white border-ai-400 shadow-md'
+                      : 'bg-white/80 text-slate-700 border-slate-200 hover:border-ai-300'
+                  }`}
+                >
+                  <span className="text-base">{langLabels[currentLang].flag}</span>
+                  <span className="hidden sm:inline">{langLabels[currentLang].native}</span>
+                  <span className="text-[10px] opacity-70">{langLabels[currentLang].code}</span>
+                  {conv.languageLocked ? (
+                    <Lock className="w-3 h-3 opacity-80" />
+                  ) : (
+                    <Unlock className="w-3 h-3 opacity-60" />
+                  )}
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showLangMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {showLangMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 py-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 min-w-[180px] overflow-hidden"
+                    >
+                      {(Object.keys(langLabels) as Language[]).map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => {
+                            updateConversationLanguage(conv.id, lang, true);
+                            setShowLangMenu(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                            currentLang === lang
+                              ? 'bg-ai-50 text-ai-700 font-semibold'
+                              : 'text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-lg">{langLabels[lang].flag}</span>
+                          <div className="flex-1 text-left">
+                            <div className="font-medium">{langLabels[lang].native}</div>
+                            <div className="text-[10px] text-slate-400">{langLabels[lang].code}</div>
+                          </div>
+                          {currentLang === lang && conv.languageLocked && (
+                            <Lock className="w-3.5 h-3.5 text-ai-500" />
+                          )}
+                        </button>
+                      ))}
+                      <div className="border-t border-slate-100 my-1" />
+                      <button
+                        onClick={() => {
+                          updateConversationLanguage(conv.id, currentLang, false);
+                          setShowLangMenu(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                          !conv.languageLocked
+                            ? 'bg-amber-50 text-amber-700 font-semibold'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Unlock className="w-4 h-4" />
+                        <span className="flex-1 text-left text-xs">
+                          {currentLang === 'zh' ? '自动检测语言' : 
+                           currentLang === 'ja' ? '自動言語検出' :
+                           currentLang === 'ko' ? '자동 언어 감지' :
+                           currentLang === 'fr' ? 'Détection automatique' :
+                           currentLang === 'de' ? 'Automatische Erkennung' :
+                           currentLang === 'es' ? 'Detección automática' :
+                           'Auto detect'}
+                        </span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <button
@@ -208,7 +295,9 @@ export default function ChatView() {
                   className="btn-ai !px-3 !py-2 flex items-center gap-1.5 text-xs"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">解决</span>
+                  <span className="hidden sm:inline">
+                    {currentLang === 'zh' ? '解决' : currentLang === 'ja' ? '解決' : currentLang === 'ko' ? '해결' : currentLang === 'fr' ? 'Résoudre' : currentLang === 'de' ? 'Lösen' : currentLang === 'es' ? 'Resolver' : 'Resolve'}
+                  </span>
                 </button>
               )}
             </div>
@@ -218,18 +307,18 @@ export default function ChatView() {
             <Clock className="w-3 h-3" />
             <span>
               {new Date(conv.createdAt).toLocaleDateString()} · {messages.length}{' '}
-              {currentLang === 'zh' ? '条消息' : currentLang === 'ja' ? 'メッセージ' : 'messages'}
+              {currentLang === 'zh' ? '条消息' : currentLang === 'ja' ? 'メッセージ' : currentLang === 'ko' ? '개의 메시지' : currentLang === 'fr' ? 'messages' : currentLang === 'de' ? 'Nachrichten' : currentLang === 'es' ? 'mensajes' : 'messages'}
             </span>
             {conv.status === 'ticket_created' && conv.ticketId && (
               <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">
                 <FileText className="w-3 h-3" />
-                工单 {conv.ticketId}
+                {currentLang === 'zh' ? '工单' : currentLang === 'ja' ? 'チケット' : currentLang === 'ko' ? '티켓' : currentLang === 'fr' ? 'Ticket' : currentLang === 'de' ? 'Ticket' : currentLang === 'es' ? 'Ticket' : 'Ticket'} {conv.ticketId}
               </span>
             )}
             {conv.status === 'resolved' && (
               <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
                 <CheckCircle2 className="w-3 h-3" />
-                {currentLang === 'zh' ? '已解决' : 'Resolved'}
+                {currentLang === 'zh' ? '已解决' : currentLang === 'ja' ? '解決済み' : currentLang === 'ko' ? '해결됨' : currentLang === 'fr' ? 'Résolu' : currentLang === 'de' ? 'Gelöst' : currentLang === 'es' ? 'Resuelto' : 'Resolved'}
                 {conv.satisfaction && ` · ${'⭐'.repeat(conv.satisfaction)}`}
               </span>
             )}
@@ -251,6 +340,14 @@ export default function ChatView() {
                   ? `工单已创建（${conv.ticketId}），您仍可继续对话补充信息`
                   : currentLang === 'ja'
                   ? `チケット作成済み（${conv.ticketId}）、引き続きチャット可能です`
+                  : currentLang === 'ko'
+                  ? `티켓이 생성되었습니다 (${conv.ticketId}), 계속 대화하실 수 있습니다`
+                  : currentLang === 'fr'
+                  ? `Ticket créé (${conv.ticketId}), vous pouvez continuer à discuter`
+                  : currentLang === 'de'
+                  ? `Ticket erstellt (${conv.ticketId}), Sie können weiter chatten`
+                  : currentLang === 'es'
+                  ? `Ticket creado (${conv.ticketId}), puede seguir charlando`
                   : `Ticket created (${conv.ticketId}), you can still continue chatting`}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -258,6 +355,14 @@ export default function ChatView() {
                   ? '人工客服将在30分钟内开始处理，您可以继续提问或稍后查看工单进度'
                   : currentLang === 'ja'
                   ? '担当者が30分以内に対応を開始します。追加のご質問があればどうぞ'
+                  : currentLang === 'ko'
+                  ? '상담원이 30분 이내에 처리를 시작합니다. 계속 질문하시거나 나중에 진행 상황을 확인하실 수 있습니다'
+                  : currentLang === 'fr'
+                  ? 'Un agent commencera le traitement dans 30 minutes. Vous pouvez continuer à poser des questions ou vérifier la progression plus tard'
+                  : currentLang === 'de'
+                  ? 'Ein Mitarbeiter beginnt innerhalb von 30 Minuten mit der Bearbeitung. Sie können weitere Fragen stellen oder später den Fortschritt prüfen'
+                  : currentLang === 'es'
+                  ? 'Un agente empezará a procesarlo en 30 minutos. Puede seguir haciendo preguntas o comprobar el progreso más tarde'
                   : 'An agent will start within 30 mins. Feel free to ask more questions'}
               </p>
             </div>
@@ -273,16 +378,28 @@ export default function ChatView() {
                 zh: '已切换至共情安抚模式，优先倾听与理解您的感受',
                 en: 'Switched to empathetic comfort mode, prioritizing listening and understanding',
                 ja: '共感安慰モードに切り替えました。お気持ちを優先してお伺いします',
+                ko: '공감 위로 모드로 전환되었습니다. 경청과 이해를 우선합니다',
+                fr: 'Passé en mode réconfort empathique, écoute et compréhension prioritaires',
+                de: 'In empathischen Trostmodus gewechselt, Zuhören und Verstehen haben Priorität',
+                es: 'Cambiado a modo de confort empático, priorizando escuchar y comprender',
               },
               moderate: {
                 zh: '已启动深度安抚模式，我们将先理解您的感受，再提供解决方案',
                 en: 'Deep comfort mode activated — understanding first, then solutions',
                 ja: '深い安慰モードを起動しました。まずお気持ちを理解し、その後に解決策をご提案します',
+                ko: '심층 위로 모드가 활성화되었습니다. 먼저 이해한 다음 해결책을 제시합니다',
+                fr: 'Mode réconfort profond activé — compréhension d\'abord, puis solutions',
+                de: 'Tiefer Trostmodus aktiviert — zuerst verstehen, dann Lösungen anbieten',
+                es: 'Modo de confort profundo activado — primero comprender, luego soluciones',
               },
               severe: {
                 zh: '已启动最高级别安抚模式，我们深切理解您的不满，将全力为您解决问题',
                 en: 'Maximum comfort mode engaged — we deeply understand your frustration and will resolve this with full commitment',
                 ja: '最高レベルの安慰モードを起動しました。お客様のご不満を深く理解し、全力で解決にあたります',
+                ko: '최고 수준 위로 모드가 작동되었습니다. 불만을 깊이 이해하고 전력으로 해결하겠습니다',
+                fr: 'Mode réconfort maximum activé — nous comprenons profondément votre frustration et nous nous engageons à résoudre ce problème',
+                de: 'Maximaler Trostmodus aktiviert — wir verstehen Ihre Frustration zutiefst und werden dies mit vollem Einsatz lösen',
+                es: 'Modo de confort máximo activado — entendemos profundamente su frustración y resolveremos esto con pleno compromiso',
               },
             };
             return (
@@ -307,7 +424,7 @@ export default function ChatView() {
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-bold ${style.text} flex items-center gap-1.5`}>
                     <span>{style.icon}</span>
-                    {currentLang === 'zh' ? '情绪安抚模式' : currentLang === 'ja' ? '感情安慰モード' : 'Comfort Mode'}
+                    {currentLang === 'zh' ? '情绪安抚模式' : currentLang === 'ja' ? '感情安慰モード' : currentLang === 'ko' ? '감정 위로 모드' : currentLang === 'fr' ? 'Mode Réconfort' : currentLang === 'de' ? 'Trostmodus' : currentLang === 'es' ? 'Modo Confort' : 'Comfort Mode'}
                     <span className={`ml-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold ${style.bg} ${style.text} border ${style.border}`}>
                       {levelLabel}
                     </span>
@@ -447,11 +564,27 @@ export default function ChatView() {
                 ? `🤗 情绪安抚模式已启动（${getEmotionLevelLabel(conv.comfortMode.level, 'zh')}）· 系统将优先共情回应 · Enter 发送`
                 : currentLang === 'ja'
                 ? `🤗 感情安慰モード起動中（${getEmotionLevelLabel(conv.comfortMode.level, 'ja')}）· 共感優先で応答 · Enter で送信`
+                : currentLang === 'ko'
+                ? `🤗 감정 위로 모드가 활성화되었습니다（${getEmotionLevelLabel(conv.comfortMode.level, 'ko')}）· 공감 우선 응답 · Enter 전송`
+                : currentLang === 'fr'
+                ? `🤗 Mode réconfort actif (${getEmotionLevelLabel(conv.comfortMode.level, 'fr')}) · Réponses empathiques d'abord · Appuyez sur Entrée pour envoyer`
+                : currentLang === 'de'
+                ? `🤗 Trostmodus aktiv (${getEmotionLevelLabel(conv.comfortMode.level, 'de')}) · Empathie zuerst · Enter zum Senden`
+                : currentLang === 'es'
+                ? `🤗 Modo confort activo (${getEmotionLevelLabel(conv.comfortMode.level, 'es')}) · Respuestas empáticas primero · Pulse Enter para enviar`
                 : `🤗 Comfort mode active (${getEmotionLevelLabel(conv.comfortMode.level, 'en')}) · Empathy-first responses · Press Enter to send`
               : currentLang === 'zh'
               ? '💡 系统将自动识别语言并进行情绪分析 · Enter 发送'
               : currentLang === 'ja'
               ? '💡 自動言語検出と感情分析 · Enter で送信'
+              : currentLang === 'ko'
+              ? '💡 자동 언어 감지 및 감정 분석 · Enter 전송'
+              : currentLang === 'fr'
+              ? '💡 Détection automatique de la langue et analyse des émotions · Appuyez sur Entrée pour envoyer'
+              : currentLang === 'de'
+              ? '💡 Automatische Spracherkennung & Emotionsanalyse · Enter zum Senden'
+              : currentLang === 'es'
+              ? '💡 Detección automática de idioma y análisis de emociones · Pulse Enter para enviar'
               : '💡 Auto language detection & emotion analysis · Press Enter to send'}
           </p>
         </div>
@@ -486,7 +619,7 @@ export default function ChatView() {
                       <CheckCircle2 className="w-10 h-10 text-emerald-600" />
                     </div>
                     <p className="text-xl font-bold text-slate-800">
-                      {currentLang === 'zh' ? '感谢您的评价！' : 'Thank you!'}
+                      {currentLang === 'zh' ? '感谢您的评价！' : currentLang === 'ja' ? 'ご評価ありがとうございます！' : currentLang === 'ko' ? '평가해 주셔서 감사합니다!' : currentLang === 'fr' ? 'Merci pour votre évaluation !' : currentLang === 'de' ? 'Vielen Dank für Ihre Bewertung!' : currentLang === 'es' ? '¡Gracias por su valoración!' : 'Thank you!'}
                     </p>
                     <p className="text-slate-500">
                       {'⭐'.repeat(selectedRating)}

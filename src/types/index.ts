@@ -1,4 +1,4 @@
-export type Language = 'zh' | 'en' | 'ja';
+export type Language = 'zh' | 'en' | 'ja' | 'ko' | 'fr' | 'de' | 'es';
 
 export type EmotionState = 'calm' | 'concerned' | 'angry';
 
@@ -76,6 +76,7 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   currentLanguage: Language;
+  languageLocked: boolean;
   emotionTrend: number[];
   status: 'active' | 'resolved' | 'ticket_created';
   ticketId?: string;

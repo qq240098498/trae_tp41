@@ -87,7 +87,7 @@ interface AppState {
 
   sendUserMessage: (text: string) => Promise<{ createdTicket?: Ticket }>;
 
-  updateConversationLanguage: (convId: string, lang: Language) => void;
+  updateConversationLanguage: (convId: string, lang: Language, locked?: boolean) => void;
   markConversationResolved: (convId: string, satisfaction?: number) => void;
 
   updateTicket: (ticketId: string, updates: Partial<Ticket>) => void;
@@ -141,6 +141,7 @@ const useAppStore = create<AppState>((set, get) => {
         createdAt: now,
         updatedAt: now,
         currentLanguage: lang,
+        languageLocked: false,
         status: 'active',
         messages: [],
         emotionTrend: [],
@@ -167,19 +168,23 @@ const useAppStore = create<AppState>((set, get) => {
       const trimmed = text.trim();
       if (!trimmed) return {};
 
-      const previousUserMessages = conv.messages.filter((m) => m.role === 'user');
-      const historyForSwitch = previousUserMessages.map((m) => ({
-        text: m.content,
-        language: m.language,
-      }));
+      let effectiveLang: Language = conv.currentLanguage;
 
-      const switchDecision = decideLanguageSwitch(
-        conv.currentLanguage,
-        trimmed,
-        historyForSwitch
-      );
+      if (!conv.languageLocked) {
+        const previousUserMessages = conv.messages.filter((m) => m.role === 'user');
+        const historyForSwitch = previousUserMessages.map((m) => ({
+          text: m.content,
+          language: m.language,
+        }));
 
-      const effectiveLang: Language = switchDecision.newLanguage;
+        const switchDecision = decideLanguageSwitch(
+          conv.currentLanguage,
+          trimmed,
+          historyForSwitch
+        );
+
+        effectiveLang = switchDecision.newLanguage;
+      }
 
       const detectionDetails = detectLanguageDetailed(trimmed);
 
@@ -311,10 +316,10 @@ const useAppStore = create<AppState>((set, get) => {
       return {};
     },
 
-    updateConversationLanguage: (convId: string, lang: Language) => {
+    updateConversationLanguage: (convId: string, lang: Language, locked: boolean = true) => {
       set((s) => {
         const updated = s.conversations.map((c) =>
-          c.id === convId ? { ...c, currentLanguage: lang, updatedAt: Date.now() } : c
+          c.id === convId ? { ...c, currentLanguage: lang, languageLocked: locked, updatedAt: Date.now() } : c
         );
         saveToStorage(StorageKeys.CONVERSATIONS, updated);
         return { conversations: updated };

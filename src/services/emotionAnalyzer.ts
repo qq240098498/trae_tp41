@@ -20,12 +20,36 @@ const negativeWords: Record<Language, string[]> = {
     'だまされた', '不正', 'ダメ', 'でたらめ', 'ふざけるな', '許せない', '頭にくる',
     'イライラ', '不満', '苦情', '文句', '最低',
   ],
+  ko: [
+    '화나', '짜증나', '최악', '싫어', '실망', '속상해', '어이없어', '황당해',
+    '사기당했어', '불만', '불량', '고장', '후회돼', '아니', '뭐야', '어이가 없네',
+    '스트레스', '짜증', '불쾌', '최악이야',
+  ],
+  fr: [
+    'furieux', 'en colère', 'déçu', 'déception', 'horrible', 'terrible', 'pire', 'nul',
+    'arnaque', 'escroquerie', 'plainte', 'réclamation', 'insupportable', 'scandaleux',
+    'abusif', 'détestable', 'affreux', 'épouvantable', 'mauvais', 'problème',
+  ],
+  de: [
+    'wütend', 'ärgerlich', 'enttäuscht', 'schrecklich', 'schlimm', 'schlecht', 'schrott',
+    'betrogen', 'betrug', 'beschwerde', 'unerträglich', 'skandalös', 'unakzeptabel',
+    'frustrierend', 'nervig', 'verärgert', 'empört', 'fürchterlich', 'miese', 'problem',
+  ],
+  es: [
+    'enojado', 'furioso', 'decepcionado', 'terrible', 'horrible', 'peor', 'malo',
+    'estafa', 'fraude', 'queja', 'reclamación', 'insoportable', 'escandaloso',
+    'inaceptable', 'frustrante', 'molesto', 'enfadado', 'rabia', 'pésimo', 'problema',
+  ],
 };
 
 const positiveWords: Record<Language, string[]> = {
   zh: ['满意', '开心', '高兴', '喜欢', '感谢', '谢谢', '很好', '棒', '赞', '优秀', '好评', '惊喜'],
   en: ['happy', 'satisfied', 'great', 'good', 'excellent', 'amazing', 'love', 'thanks', 'thank you', 'appreciate', 'wonderful', 'perfect'],
   ja: ['満足', '嬉しい', '楽しい', '好き', '感謝', 'ありがとう', '素晴らしい', '最高', '良い', '優れている'],
+  ko: ['만족', '행복', '기뻐', '좋아', '감사', '고마워', '최고', '좋다', '훌륭해', '감사합니다'],
+  fr: ['content', 'satisfait', 'super', 'bon', 'excellent', 'incroyable', 'aimer', 'merci', 'merci beaucoup', 'apprécier', 'parfait', 'génial'],
+  de: ['glücklich', 'zufrieden', 'großartig', 'gut', 'hervorragend', 'fantastisch', 'lieben', 'danke', 'vielen dank', 'schätzen', 'perfekt', 'wunderbar'],
+  es: ['feliz', 'satisfecho', 'excelente', 'bueno', 'magnífico', 'increíble', 'encantar', 'gracias', 'muchas gracias', 'apreciar', 'perfecto', 'genial'],
 };
 
 const directComplaintWords: Record<Language, string[]> = {
@@ -44,6 +68,28 @@ const directComplaintWords: Record<Language, string[]> = {
     '苦情', '訴える', '裁判', '法律', '消費者センター', '公正取引委員会',
     'メディア', '暴露', '賠償', '損害賠償', '詐欺', '不当行為',
     '絶対に許せない', '絶対に訴える', '絶対に払わせる',
+  ],
+  ko: [
+    '신고', '고발', '소비자원', '공정거래위원회', '언론', '고소', '고발',
+    '소송', '법적 조치', '배상', '손해배상', '사기', '불법행위',
+    '절대 용서 안 돼', '꼭 고소할 거야', '반드시 배상받을 거야',
+  ],
+  fr: [
+    'plainte', 'réclamation', 'procès', 'justice', 'consommateur', 'dgccrf',
+    'médias', 'dénoncer', 'indemnisation', 'dommages et intérêts', 'arnaque',
+    'fraude', 'action en justice', 'porter plainte', 'démarrer une procédure',
+  ],
+  de: [
+    'beschwerde', 'klage', 'gericht', 'verbraucherschutz', 'bundesnetzagentur',
+    'medien', 'anklagen', 'entschädigung', 'schadenersatz', 'betrug',
+    'rechtswidrig', 'rechtliche schritte', 'klage einreichen', 'verbraucherzentrale',
+    'ich werde klagen', 'das ist rechtswidrig', 'ich verlangen entschädigung',
+  ],
+  es: [
+    'queja', 'reclamación', 'demanda', 'juicio', 'consumidor', 'consumo',
+    'medios', 'denunciar', 'indemnización', 'daños y perjuicios', 'estafa',
+    'fraude', 'acción legal', 'poner una queja', 'iniciar un procedimiento',
+    'voy a denunciar', 'esto es inaceptable', 'exijo compensación',
   ],
 };
 
@@ -188,6 +234,10 @@ export function getEmotionLabel(state: EmotionState, language: Language): string
     zh: { calm: '情绪正常', concerned: '需要关注', angry: '情绪激动' },
     en: { calm: 'Calm', concerned: 'Needs Attention', angry: 'Upset' },
     ja: { calm: '穏やか', concerned: '要注意', angry: '怒っている' },
+    ko: { calm: '안정', concerned: '주의 필요', angry: '화남' },
+    fr: { calm: 'Calme', concerned: 'Attention Requise', angry: 'En Colère' },
+    de: { calm: 'Ruhig', concerned: 'Aufmerksamkeit Erforderlich', angry: 'Wütend' },
+    es: { calm: 'Tranquilo', concerned: 'Requiere Atención', angry: 'Enojado' },
   };
   return labels[language][state];
 }
@@ -197,6 +247,10 @@ export function getEmotionLevelLabel(level: EmotionLevel, language: Language): s
     zh: { mild: '轻度不满', moderate: '中度愤怒', severe: '重度投诉' },
     en: { mild: 'Mild Dissatisfaction', moderate: 'Moderate Anger', severe: 'Severe Complaint' },
     ja: { mild: '軽度不満', moderate: '中度怒り', severe: '重度苦情' },
+    ko: { mild: '경미한 불만', moderate: '중간 정도 화남', severe: '심각한 불만' },
+    fr: { mild: 'Mécontentement Léger', moderate: 'Colère Modérée', severe: 'Plainte Grave' },
+    de: { mild: 'Leichte Unzufriedenheit', moderate: 'Mäßige Wut', severe: 'Schwere Beschwerde' },
+    es: { mild: 'Insatisfacción Leve', moderate: 'Ira Moderada', severe: 'Queja Grave' },
   };
   return labels[language][level];
 }

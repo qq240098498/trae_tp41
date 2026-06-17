@@ -84,19 +84,19 @@ export default function Layout({ children }: LayoutProps) {
             <Globe className="inline w-3 h-3 mr-1.5 align-middle" />
             {ui.language}
           </div>
-          <div className="flex gap-1.5 px-2">
-            {(['zh', 'en', 'ja'] as Language[]).map((lang) => (
+          <div className="grid grid-cols-4 gap-1 px-2">
+            {(['zh', 'en', 'ja', 'ko', 'fr', 'de', 'es'] as Language[]).map((lang) => (
               <button
                 key={lang}
                 onClick={() => setAdminLanguage(lang)}
-                className={`flex-1 px-2 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${
+                className={`px-1 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 ${
                   adminLanguage === lang
                     ? 'bg-gradient-to-r from-primary-500 to-ai-500 text-white shadow-md shadow-primary-500/20'
                     : 'bg-white/60 text-slate-600 hover:bg-white border border-slate-200/60'
                 }`}
+                title={langLabels[lang].native}
               >
-                <span className="mr-1">{langLabels[lang].flag}</span>
-                {langLabels[lang].code}
+                <span className="text-sm">{langLabels[lang].flag}</span>
               </button>
             ))}
           </div>
