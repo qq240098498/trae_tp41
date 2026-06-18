@@ -137,7 +137,8 @@ export interface ShouldCreateTicketResult {
 export function shouldCreateTicket(
   conversation: Conversation,
   currentIntent: IntentType,
-  currentEmotionScore: number
+  currentEmotionScore: number,
+  currentIntentConfidence: number = 0
 ): ShouldCreateTicketResult {
   const { emotionTrend, unknownCount, messages } = conversation;
 
@@ -148,7 +149,8 @@ export function shouldCreateTicket(
   const userMessages = messages.filter((m) => m.role === 'user');
   const assistantMessages = messages.filter((m) => m.role === 'assistant');
   const conversationRounds = Math.min(userMessages.length, assistantMessages.length);
-  if (conversationRounds >= 3 && conversation.status === 'active') {
+
+  if (conversationRounds > 3 && conversation.status === 'active') {
     const isResolved = userMessages.slice(-2).some((m) => {
       const intent = m.intent;
       return intent === 'thanks' || intent === 'farewell';
@@ -158,18 +160,19 @@ export function shouldCreateTicket(
     }
   }
 
-  const recentUnknowns = messages
-    .filter((m) => m.role === 'assistant')
-    .slice(-2);
-  if (
-    unknownCount >= 2 ||
-    (recentUnknowns.length >= 2 && recentUnknowns.every((m) => m.intent === 'unknown'))
-  ) {
-    return { shouldCreate: true, reason: 'knowledge_base_exceeded' };
-  }
+  const recentUserUnknowns = userMessages
+    .slice(-3)
+    .filter((m) => m.intent === 'unknown');
+  const isLowConfidenceUnknown =
+    currentIntent === 'unknown' && currentIntentConfidence < 0.35;
 
-  if (currentIntent === 'unknown' && conversationRounds >= 2) {
-    return { shouldCreate: true, reason: 'knowledge_base_exceeded' };
+  if (isLowConfidenceUnknown) {
+    if (unknownCount >= 3 && conversationRounds >= 3) {
+      return { shouldCreate: true, reason: 'knowledge_base_exceeded' };
+    }
+    if (recentUserUnknowns.length >= 3 && conversationRounds >= 3) {
+      return { shouldCreate: true, reason: 'knowledge_base_exceeded' };
+    }
   }
 
   const recentScores = emotionTrend.slice(-3);

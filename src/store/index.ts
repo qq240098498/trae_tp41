@@ -213,7 +213,8 @@ const useAppStore = create<AppState>((set, get) => {
           if (c.id !== conv.id) return c;
           const newEmotionTrend = [...c.emotionTrend, emotionResult.score].slice(-10);
           const newConsec = emotionResult.score >= 0.4 ? c.consecutiveNegativeCount + 1 : 0;
-          const newUnknown = intentResult.intent === 'unknown' ? c.unknownCount + 1 : c.unknownCount;
+          const isTrueUnknown = intentResult.intent === 'unknown' && intentResult.confidence < 0.35;
+          const newUnknown = isTrueUnknown ? c.unknownCount + 1 : c.unknownCount;
           const tempConv: Conversation = {
             ...c,
             messages: [...c.messages, userMessage],
@@ -270,7 +271,7 @@ const useAppStore = create<AppState>((set, get) => {
         let updatedStats = s.stats;
 
         if (!updatedConv.ticketId) {
-          const ticketCheck = shouldCreateTicket(updatedConv, intentResult.intent, emotionResult.score);
+          const ticketCheck = shouldCreateTicket(updatedConv, intentResult.intent, emotionResult.score, intentResult.confidence);
           if (ticketCheck.shouldCreate) {
           const { ticket, notifyMessage } = createTicket(updatedConv, effectiveLang, ticketCheck.reason, s.tickets.length);
           createdTicket = ticket;
