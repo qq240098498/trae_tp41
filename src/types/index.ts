@@ -125,3 +125,32 @@ export interface IntentKeywords {
 export interface ReplyTemplate {
   [intent: string]: string[];
 }
+
+export type KnowledgeBaseCategory = 'product_doc' | 'faq' | 'announcement';
+
+export interface KnowledgeBaseEntry {
+  id: string;
+  category: KnowledgeBaseCategory;
+  title: Record<Language, string>;
+  content: Record<Language, string>;
+  keywords: Record<Language, string[]>;
+  tags: string[];
+  intents: IntentType[];
+  updatedAt: number;
+}
+
+export interface KnowledgeSearchResult {
+  entry: KnowledgeBaseEntry;
+  confidence: number;
+  matchedKeywords: string[];
+  categoryMatch: boolean;
+}
+
+export interface KnowledgeSearchResponse {
+  results: KnowledgeSearchResult[];
+  bestMatch?: KnowledgeSearchResult;
+  overallConfidence: number;
+  shouldEscalate: boolean;
+  extractedKeywords: string[];
+  decomposedIntents: IntentType[];
+}

@@ -15,6 +15,10 @@ import { analyzeEmotion, evaluateComfortMode } from '../services/emotionAnalyzer
 import { detectLanguage, decideLanguageSwitch, detectLanguageDetailed } from '../services/multilingualService';
 import { generateReply } from '../services/responseGenerator';
 import {
+  searchKnowledgeBase,
+  CONFIDENCE_THRESHOLD as KB_CONFIDENCE_THRESHOLD,
+} from '../services/knowledgeBase';
+import {
   shouldCreateTicket,
   createTicket,
 } from '../services/ticketGenerator';
@@ -242,7 +246,17 @@ const useAppStore = create<AppState>((set, get) => {
       const replyIntent: IntentType =
         intentResult.intent === 'unknown' ? 'unknown' : intentResult.intent;
       const comfortLevel = conv.comfortMode.enabled ? conv.comfortMode.level : undefined;
-      const replyContent = generateReply(replyIntent, effectiveLang, emotionResult.state, trimmed, comfortLevel);
+
+      const kbResult = searchKnowledgeBase(trimmed, effectiveLang, replyIntent);
+
+      const replyContent = generateReply({
+        intent: replyIntent,
+        language: effectiveLang,
+        emotion: emotionResult.state,
+        userText: trimmed,
+        comfortLevel,
+        kbResult,
+      });
 
       const replyMessage: Message = {
         id: newId('MSG'),

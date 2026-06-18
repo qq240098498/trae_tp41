@@ -1,5 +1,12 @@
-import { IntentType, Language, EmotionState, EmotionLevel } from '../types';
+import { IntentType, Language, EmotionState, EmotionLevel, KnowledgeSearchResponse } from '../types';
 import { extractTechnicalTerms } from './multilingualService';
+import {
+  searchKnowledgeBase,
+  getKnowledgeContent,
+  buildEscalationMessage,
+  HIGH_CONFIDENCE_THRESHOLD,
+  CONFIDENCE_THRESHOLD,
+} from './knowledgeBase';
 
 type ReplyVariants = Record<Language, Record<EmotionState, Record<IntentType, string[]>>>;
 
@@ -772,32 +779,184 @@ function buildComfortPrefix(level: EmotionLevel, language: Language): string {
   return `${empathy}\n\n${apology}\n\n${solution}`;
 }
 
+function buildSourceLabel(language: Language): string {
+  const labels: Record<Language, string> = {
+    zh: '📚 内容来源：知识库',
+    en: '📚 Source: Knowledge Base',
+    ja: '📚 出典：ナレッジベース',
+    ko: '📚 출처: 지식베이스',
+    fr: '📚 Source : Base de connaissances',
+    de: '📚 Quelle: Wissensdatenbank',
+    es: '📚 Fuente: Base de conocimientos',
+  };
+  return labels[language];
+}
+
+function buildConfidenceBadge(language: Language, confidence: number): string {
+  const pct = Math.round(confidence * 100);
+  const labels: Record<Language, string> = {
+    zh: `匹配度：${pct}%`,
+    en: `Match: ${pct}%`,
+    ja: `マッチ率：${pct}%`,
+    ko: `매치율: ${pct}%`,
+    fr: `Correspondance : ${pct}%`,
+    de: `Übereinstimmung: ${pct}%`,
+    es: `Coincidencia: ${pct}%`,
+  };
+  return labels[language];
+}
+
+function buildRelatedLinks(
+  language: Language,
+  kbResult: KnowledgeSearchResponse
+): string {
+  if (kbResult.results.length <= 1) return '';
+  const labels: Record<Language, string> = {
+    zh: '\n\n📎 相关内容：',
+    en: '\n\n📎 Related content:',
+    ja: '\n\n📎 関連コンテンツ：',
+    ko: '\n\n📎 관련 내용:',
+    fr: '\n\n📎 Contenu associé :',
+    de: '\n\n📎 Verwandte Inhalte:',
+    es: '\n\n📎 Contenido relacionado:',
+  };
+  const related = kbResult.results
+    .slice(1)
+    .map((r, i) => {
+      const { title } = getKnowledgeContent(r.entry, language);
+      return `${i + 1}. ${title} (${Math.round(r.confidence * 100)}%)`;
+    })
+    .join('\n');
+  return related ? `${labels[language]}\n${related}` : '';
+}
+
+export interface GenerateReplyOptions {
+  intent: IntentType;
+  language: Language;
+  emotion: EmotionState;
+  userText?: string;
+  comfortLevel?: EmotionLevel;
+  kbResult?: KnowledgeSearchResponse;
+}
+
+export function generateReply(options: GenerateReplyOptions): string;
 export function generateReply(
   intent: IntentType,
   language: Language,
   emotion: EmotionState,
   userText?: string,
   comfortLevel?: EmotionLevel
+): string;
+export function generateReply(
+  intentOrOptions: IntentType | GenerateReplyOptions,
+  language?: Language,
+  emotion?: EmotionState,
+  userText?: string,
+  comfortLevel?: EmotionLevel
 ): string {
-  const emotionKey: EmotionState = emotion;
-  const templates = replyTemplates[language]?.[emotionKey]?.[intent];
+  let intent: IntentType;
+  let lang: Language;
+  let emo: EmotionState;
+  let text: string | undefined;
+  let comfort: EmotionLevel | undefined;
+  let kbResult: KnowledgeSearchResponse | undefined;
+
+  if (typeof intentOrOptions === 'string') {
+    intent = intentOrOptions as IntentType;
+    lang = language!;
+    emo = emotion!;
+    text = userText;
+    comfort = comfortLevel;
+  } else {
+    const opts = intentOrOptions as GenerateReplyOptions;
+    intent = opts.intent;
+    lang = opts.language;
+    emo = opts.emotion;
+    text = opts.userText;
+    comfort = opts.comfortLevel;
+    kbResult = opts.kbResult;
+  }
+
+  if (!kbResult && text) {
+    kbResult = searchKnowledgeBase(text, lang, intent);
+  }
+
+  const greetingIntents: IntentType[] = ['greeting', 'thanks', 'farewell'];
+  if (!greetingIntents.includes(intent) && kbResult) {
+    if (kbResult.shouldEscalate && kbResult.overallConfidence < CONFIDENCE_THRESHOLD) {
+      return buildEscalationMessage(lang, kbResult.overallConfidence);
+    }
+
+    if (kbResult.bestMatch && kbResult.overallConfidence >= HIGH_CONFIDENCE_THRESHOLD) {
+      const { title, content } = getKnowledgeContent(kbResult.bestMatch.entry, lang);
+      const related = buildRelatedLinks(lang, kbResult);
+      const badge = buildConfidenceBadge(lang, kbResult.overallConfidence);
+      const source = buildSourceLabel(lang);
+
+      let reply = content;
+
+      if (comfort && emo !== 'calm') {
+        const comfortPrefix = buildComfortPrefix(comfort, lang);
+        if (comfortPrefix) {
+          reply = `${comfortPrefix}\n\n---\n\n${reply}`;
+        }
+      }
+
+      reply = `${reply}\n\n───\n${source} · ${title} · ${badge}${related}`;
+      return reply;
+    }
+
+    if (kbResult.bestMatch && kbResult.overallConfidence >= CONFIDENCE_THRESHOLD) {
+      const { title, content } = getKnowledgeContent(kbResult.bestMatch.entry, lang);
+      const badge = buildConfidenceBadge(lang, kbResult.overallConfidence);
+      const source = buildSourceLabel(lang);
+
+      let reply = content;
+
+      if (comfort && emo !== 'calm') {
+        const comfortPrefix = buildComfortPrefix(comfort, lang);
+        if (comfortPrefix) {
+          reply = `${comfortPrefix}\n\n---\n\n${reply}`;
+        }
+      }
+
+      const escalationHints: Record<Language, string> = {
+        zh: '\n\n💡 如上述内容未能完全解答您的问题，可联系人工客服获得更详细的帮助。',
+        en: '\n\n💡 If the above does not fully answer your question, please contact our human support for more detailed assistance.',
+        ja: '\n\n💡 上記の内容で完全に解決しない場合は、オペレーターにお問い合わせください。',
+        ko: '\n\n💡 위 내용으로 충분히 해결되지 않으면 인간 고객센터에 문의해 주세요.',
+        fr: '\n\n💡 Si ce qui précède ne répond pas entièrement à votre question, contactez notre support humain pour une aide plus détaillée.',
+        de: '\n\n💡 Wenn das Obige Ihre Frage nicht vollständig beantwortet, kontaktieren Sie bitte unseren menschlichen Support für detailliertere Hilfe.',
+        es: '\n\n💡 Si lo anterior no responde completamente a su pregunta, contacte con nuestro soporte humano para obtener ayuda más detallada.',
+      };
+
+      reply = `${reply}${escalationHints[lang]}\n\n───\n${source} · ${title} · ${badge}`;
+      return reply;
+    }
+  }
+
+  const emotionKey: EmotionState = emo;
+  const templates = replyTemplates[lang]?.[emotionKey]?.[intent];
 
   if (!templates || templates.length === 0) {
-    const fallback = replyTemplates[language]?.calm?.unknown || ['I do not understand.'];
+    const fallback = replyTemplates[lang]?.calm?.unknown || ['I do not understand.'];
+    if (kbResult && kbResult.overallConfidence < CONFIDENCE_THRESHOLD) {
+      return buildEscalationMessage(lang, kbResult.overallConfidence);
+    }
     return fallback[Math.floor(Math.random() * fallback.length)];
   }
 
   let reply = templates[Math.floor(Math.random() * templates.length)];
 
-  if (comfortLevel && emotion !== 'calm') {
-    const comfortPrefix = buildComfortPrefix(comfortLevel, language);
+  if (comfort && emo !== 'calm') {
+    const comfortPrefix = buildComfortPrefix(comfort, lang);
     if (comfortPrefix) {
       reply = `${comfortPrefix}\n\n---\n\n${reply}`;
     }
   }
 
-  if (userText) {
-    const technicalTerms = extractTechnicalTerms(userText);
+  if (text) {
+    const technicalTerms = extractTechnicalTerms(text);
     const relevantTerms = technicalTerms.filter((t) => t.length >= 2).slice(0, 6);
 
     if (relevantTerms.length > 0) {
@@ -810,15 +969,15 @@ export function generateReply(
         de: { prefix: '\n\n📋 Schlüsselbegriffe in Ihrer Nachricht:', suffix: '' },
         es: { prefix: '\n\n📋 Palabras clave mencionadas en su mensaje:', suffix: '' },
       };
-      const labels = termLabels[language];
+      const labels = termLabels[lang];
       const termStr = relevantTerms.map((t) => `\`${t}\``).join(' · ');
       reply = `${reply}${labels.prefix} ${termStr}${labels.suffix}`;
     }
 
-    if (intent === 'unknown' && emotion !== 'calm') {
+    if (intent === 'unknown' && emo !== 'calm') {
       const maxLen = 80;
       const preview =
-        userText.length > maxLen ? userText.slice(0, maxLen) + '...' : userText;
+        text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
       reply = reply + `\n\n「${preview}」`;
     }
   }
